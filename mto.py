@@ -7,9 +7,9 @@ from PIL import Image, ImageOps
 from matplotlib import pyplot as plt
 
 
-data_path = 'data/crop_ngc4307_g.fits'
+data_path = '../MTO-2.0/data/NGC4307_Sloan-g.fits'
 #data_path = '../whale/data/bg_sim/intensity variation 1/cluster1.fits'
-image, header = helper.read_image_data(data_path, 0, -1, 0, -1)
+image, header = helper.read_image_data(data_path, 4000, 7000, 4000, 7000)
 image = helper.image_value_check(image)
 image = helper.smooth_filter(image)
 

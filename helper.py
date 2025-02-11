@@ -416,7 +416,7 @@ def select_objects(tree, significant_nodes):
     return res
 
 
-def move_up(tree, altitudes, objects, background_var, gain, gamma_distance, volum_ratio, alambda=0.1):
+def move_up(tree, altitudes, objects, background_var, gain, gamma_distance, volum_ratio, alambda=0.01):
     # true if a node is in the main branch of its parent
     main_branch = attribute_main_branch(tree)
 
