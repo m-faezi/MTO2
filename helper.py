@@ -383,6 +383,16 @@ def second_order_moments(tree, size, image):
     return major_axis, minor_axis, theta
 
 
+def attribute_statistical_significance(tree, altitudes, volume, area, background_var, gain, alpha=1-1e-6):
+    from scipy.stats import chi2
+
+    volume /= (background_var + altitudes[tree.parents()] / gain)
+
+    significant_nodes = volume > chi2.ppf(alpha, area)  # inverse cdf
+    significant_nodes[:tree.num_leaves()] = False
+    return significant_nodes
+
+
 def attribute_main_branch(tree):
     # True is a node is not the root of a main branch
     area = hg.attribute_area(tree)
@@ -391,7 +401,7 @@ def attribute_main_branch(tree):
     return child_number == largest_child[tree.parents()]
 
 
-def select_objects(tree, altitudes, significant_nodes):
+def select_objects(tree, significant_nodes):
     filtered_tree, node_map = hg.simplify_tree(tree, np.logical_not(significant_nodes))
 
     main_branch = attribute_main_branch(filtered_tree)
@@ -406,7 +416,7 @@ def select_objects(tree, altitudes, significant_nodes):
     return res
 
 
-def move_up(tree, altitudes, th, pth, objects, background_var, gain, area, parent_area, alambda=0.0001):
+def move_up(tree, altitudes, objects, background_var, gain, gamma_distance, volum_ratio, alambda=0.1):
     # true if a node is in the main branch of its parent
     main_branch = attribute_main_branch(tree)
 
@@ -426,51 +436,10 @@ def move_up(tree, altitudes, th, pth, objects, background_var, gain, area, paren
     target_altitudes = target_altitudes[closest_object_ancestor]
     # a move is valid if the target altitude of the closest object ancestor in the main branch is lower than the
     # the curent altitude and if the closest object is a real object
-    valid_moves = np.logical_and(th == pth - 1, objects[closest_object_ancestor])
-    valid_moves = th == pth - 1
-    valid_moves = np.logical_and(altitudes >= target_altitudes, th == pth - 1)
-    #valid_moves = np.logical_and(
-    #    np.logical_and(altitudes >= target_altitudes, th == pth - 1),
-    #    parent_area/area < 1.1
-    #)
-
-    parent_closest_object_ancestor = closest_object_ancestor[tree.parents()]
-    parent_not_valid_moves = np.logical_not(valid_moves[tree.parents()])
-    # a new object is a node n such that (valid_move(n) && (!valid_move(parent(n)) || closest(n) != closest(parent(n))))
-    new_objects = np.logical_and(
-        valid_moves,
-        np.logical_or(
-            parent_not_valid_moves,
-            parent_closest_object_ancestor != closest_object_ancestor))
-    return new_objects
-
-
-def local_move_up(tree, altitudes, th, pth, objects, background_var, gain, area, parent_area, alambda=1e-6):
-    # true if a node is in the main branch of its parent
-    main_branch = attribute_main_branch(tree)
-
-    # index of the closest object ancestor in the main branch, itself otherwise
-    closest_object_ancestor = hg.propagate_sequential(
-        tree,
-        np.arange(tree.num_vertices()),
-        np.logical_and(main_branch, np.logical_not(objects)))
-
-    # objects should be move up in the main branch to their target altitude
-    target_altitudes = altitudes.copy()
-    object_indexes, = np.nonzero(objects)
-    local_noise = np.sqrt(background_var[object_indexes] + altitudes[tree.parent(object_indexes)] / gain[object_indexes])
-    target_altitudes[object_indexes] = altitudes[object_indexes] + alambda * local_noise
-
-    # target altitude associated to the closest object anacestor in the main branch, self altitude otherwise
-    target_altitudes = target_altitudes[closest_object_ancestor]
-
-    # valid_moves = np.logical_and(
-    #     np.logical_and(altitudes >= target_altitudes, th == pth - 1),
-    #     parent_area/area < 1.5
-    # )
-
-    valid_moves = np.logical_and(altitudes >= target_altitudes, th == pth - 1)
-
+    valid_moves = np.logical_and(
+        np.logical_and(altitudes >= target_altitudes, objects[closest_object_ancestor]),
+        np.logical_and(gamma_distance==1, volum_ratio>=.5),
+    )
 
     parent_closest_object_ancestor = closest_object_ancestor[tree.parents()]
     parent_not_valid_moves = np.logical_not(valid_moves[tree.parents()])
