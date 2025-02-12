@@ -7,9 +7,9 @@ from PIL import Image, ImageOps
 from matplotlib import pyplot as plt
 
 
-data_path = '../MTO-2.0/data/NGC4307_Sloan-g.fits'
+data_path = '../MTO-2.0/data/crop_ngc4307_g.fits'
 #data_path = '../whale/data/bg_sim/intensity variation 1/cluster1.fits'
-image, header = helper.read_image_data(data_path, 4000, 7000, 4000, 7000)
+image, header = helper.read_image_data(data_path, 0, -1, 0, -1)
 image = helper.image_value_check(image)
 image = helper.smooth_filter(image)
 
@@ -19,7 +19,17 @@ image_calibrated = image - bg_mean
 
 graph_structure, tree_structure, altitudes = helper.image_to_hierarchical_structure(image_calibrated)
 
+x, y = helper.centroid(tree_structure, image.shape[:2])
+distances = np.sqrt((x[tree_structure.parents()] - x) ** 2 + (y[tree_structure.parents()] - y) ** 2)
+mean, variance = hg.attribute_gaussian_region_weights_model(tree_structure, image)
+
 area = hg.attribute_area(tree_structure)
+gaussian_intensities = helper.compute_gaussian_profile(
+    mean,
+    variance,
+    distances
+) / area
+
 volume = hg.attribute_volume(tree_structure, altitudes)
 parent_volume = volume[tree_structure.parents()]
 gamma = hg.attribute_topological_height(tree_structure)
@@ -36,7 +46,7 @@ significant_nodes = helper.attribute_statistical_significance(
 
 objs = helper.select_objects(tree_structure, significant_nodes)
 
-nobjs = helper.move_up(tree_structure, altitudes, objs, bg_var, bg_gain, parent_gamma-gamma, volume/parent_volume)
+nobjs = helper.move_up(tree_structure, altitudes, area, objs, bg_var, bg_gain, parent_gamma-gamma, volume/parent_volume, gaussian_intensities)
 
 # construct final segmentation with random colors as labels
 colors = np.random.randint(0, 256, (tree_structure.num_vertices(), 3), dtype=np.uint8)

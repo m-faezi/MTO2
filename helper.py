@@ -416,7 +416,7 @@ def select_objects(tree, significant_nodes):
     return res
 
 
-def move_up(tree, altitudes, objects, background_var, gain, gamma_distance, volume_ratio, alambda=0.1):
+def move_up(tree, altitudes, area, objects, background_var, gain, gamma_distance, volume_ratio, gaussian, alambda=0.005):
     # true if a node is in the main branch of its parent
     main_branch = attribute_main_branch(tree)
 
@@ -436,9 +436,13 @@ def move_up(tree, altitudes, objects, background_var, gain, gamma_distance, volu
     target_altitudes = target_altitudes[closest_object_ancestor]
     # a move is valid if the target altitude of the closest object ancestor in the main branch is lower than the
     # the curent altitude and if the closest object is a real object
+    #valid_moves = np.logical_and(
+    #    np.logical_and(altitudes >= target_altitudes, objects[closest_object_ancestor]),
+    #    np.logical_and(gamma_distance==1, altitudes/area>=gaussian),
+    #)
     valid_moves = np.logical_and(
         np.logical_and(altitudes >= target_altitudes, objects[closest_object_ancestor]),
-        np.logical_and(gamma_distance==1, volume_ratio>=.9),
+        altitudes/area>=gaussian,
     )
 
     parent_closest_object_ancestor = closest_object_ancestor[tree.parents()]
