@@ -1,3 +1,4 @@
+import os
 import numpy
 import numpy as np
 import higra as hg
