@@ -6,7 +6,8 @@ from PIL import Image, ImageOps
 
 
 data_path = '../MTO-2.0/data/NGC4307_Sloan-g.fits'
-image, header = helper.read_image_data(data_path, 3000, 7000, 3000, 7000)
+image, header = helper.read_image_data(data_path, 1000, 9000, 1000, 9000)
+image, header = helper.read_image_data(data_path, 2000, 3000, 3000, 4000)
 image = helper.image_value_check(image)
 image = helper.smooth_filter(image)
 
@@ -21,12 +22,19 @@ distances = np.sqrt((x[tree_structure.parents()] - x) ** 2 + (y[tree_structure.p
 mean, variance = hg.attribute_gaussian_region_weights_model(tree_structure, image)
 
 area = hg.attribute_area(tree_structure)
-gaussian_intensities = helper.compute_gaussian_profile_2(
+
+gaussian_intensities = helper.compute_gaussian_profile(
     mean,
     variance,
     distances,
-    altitudes/area
 ) / area
+
+#gaussian_intensities = helper.compute_gaussian_profile_2(
+#    mean,
+#    variance,
+#    distances,
+#    altitudes/area
+#) / area
 
 volume = hg.attribute_volume(tree_structure, altitudes)
 parent_volume = volume[tree_structure.parents()]
