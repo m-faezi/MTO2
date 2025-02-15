@@ -5,8 +5,8 @@ import helper
 from PIL import Image, ImageOps
 
 
-data_path = '../MTO-2.0/data/crop_ngc4307_g.fits'
-image, header = helper.read_image_data(data_path, 0, -1, 0, -1)
+data_path = '../MTO-2.0/data/NGC4307_Sloan-g.fits'
+image, header = helper.read_image_data(data_path, 3000, 7000, 3000, 7000)
 image = helper.image_value_check(image)
 image = helper.smooth_filter(image)
 
@@ -21,10 +21,11 @@ distances = np.sqrt((x[tree_structure.parents()] - x) ** 2 + (y[tree_structure.p
 mean, variance = hg.attribute_gaussian_region_weights_model(tree_structure, image)
 
 area = hg.attribute_area(tree_structure)
-gaussian_intensities = helper.compute_gaussian_profile(
+gaussian_intensities = helper.compute_gaussian_profile_2(
     mean,
     variance,
-    distances
+    distances,
+    altitudes/area
 ) / area
 
 volume = hg.attribute_volume(tree_structure, altitudes)
@@ -55,7 +56,7 @@ segmentation_image = ImageOps.flip(segmentation_image)
 segmentation_image.save('MTO-detection.png', 'PNG', quality=95)
 
 # Save the segmentation with unique IDs to a FITS file
-unique_segment_ids = np.arange(tree_structure.num_vertices())[::-1]
-seg_with_ids = hg.reconstruct_leaf_data(tree_structure, unique_segment_ids)
-helper.save_fits_with_header(seg_with_ids, header, 'MTO-detection.fits')
+#unique_segment_ids = np.arange(tree_structure.num_vertices())[::-1]
+#seg_with_ids = hg.reconstruct_leaf_data(tree_structure, unique_segment_ids)
+#helper.save_fits_with_header(seg_with_ids, header, 'MTO-detection.fits')
 
