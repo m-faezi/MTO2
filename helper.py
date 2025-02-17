@@ -299,7 +299,7 @@ def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta)
         "Theta": theta,
     }
     parameters_df = pd.DataFrame(parameters)
-    parameters_df.to_csv('output/parameters.csv', index=False)
+    parameters_df.to_csv('parameters.csv', index=False)
 
 
 def total_flux(tree, size, image):

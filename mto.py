@@ -6,8 +6,8 @@ from PIL import Image, ImageOps
 
 
 data_path = '../MTO-2.0/data/NGC4307_Sloan-g.fits'
-image, header = helper.read_image_data(data_path, 1000, 9000, 1000, 9000)
-image, header = helper.read_image_data(data_path, 2000, 3000, 3000, 4000)
+#image, header = helper.read_image_data(data_path, 1000, 9000, 1000, 9000)
+image, header = helper.read_image_data(data_path, 3500, 6500, 3500, 6500)
 image = helper.image_value_check(image)
 image = helper.smooth_filter(image)
 
@@ -38,6 +38,7 @@ gaussian_intensities = helper.compute_gaussian_profile(
 
 volume = hg.attribute_volume(tree_structure, altitudes)
 parent_volume = volume[tree_structure.parents()]
+parent_altitude = altitudes[tree_structure.parents()]
 gamma = hg.attribute_topological_height(tree_structure)
 parent_gamma = gamma[tree_structure.parents()]
 
@@ -50,21 +51,50 @@ significant_nodes = helper.attribute_statistical_significance(
     bg_gain,
 )
 
-objs = helper.select_objects(tree_structure, significant_nodes)
+objects = helper.select_objects(tree_structure, significant_nodes)
 
-nobjs = helper.move_up(tree_structure, altitudes, area, objs, bg_var, bg_gain, parent_gamma-gamma, volume/parent_volume, gaussian_intensities)
+modified_isophote = helper.move_up(tree_structure, altitudes, area, objects, bg_var, bg_gain, parent_gamma - gamma, volume / parent_volume, gaussian_intensities, 1000.0)
 
+tree_of_segments, n_map_segments = hg.simplify_tree(
+    tree_structure,
+    np.logical_not(modified_isophote)
+)
 # construct final segmentation with random colors as labels
-colors = np.random.randint(0, 256, (tree_structure.num_vertices(), 3), dtype=np.uint8)
-colors[tree_structure.root(),:] = 0
-seg = hg.reconstruct_leaf_data(tree_structure, colors, np.logical_not(nobjs))
+colors = np.random.randint(0, 256, (tree_of_segments.num_vertices(), 3), dtype=np.uint8)
+colors[tree_of_segments.root(),:] = 0
+seg = hg.reconstruct_leaf_data(tree_of_segments, colors)
 
 segmentation_image = Image.fromarray(seg.astype(np.uint8))
 segmentation_image = ImageOps.flip(segmentation_image)
-segmentation_image.save('MTO-detection.png', 'PNG', quality=95)
+segmentation_image.save('MTO-detection-crop-g-1000,0_centerrrrrr.png', 'PNG', quality=95)
 
 # Save the segmentation with unique IDs to a FITS file
-#unique_segment_ids = np.arange(tree_structure.num_vertices())[::-1]
-#seg_with_ids = hg.reconstruct_leaf_data(tree_structure, unique_segment_ids)
-#helper.save_fits_with_header(seg_with_ids, header, 'MTO-detection.fits')
+unique_segment_ids = np.arange(tree_of_segments.num_vertices())[::-1]
+seg_with_ids = hg.reconstruct_leaf_data(tree_of_segments, unique_segment_ids)
+helper.save_fits_with_header(seg_with_ids, header, 'MTO-detection.fits')
+
+'''parameter extraction'''
+x = x[n_map_segments][tree_of_segments.num_leaves():]
+y = y[n_map_segments][tree_of_segments.num_leaves():]
+ra, dec = helper.sky_coordinates(y, x, header)
+
+a, b, theta = helper.second_order_moments(tree_of_segments, image.shape[:2], image)
+flux = hg.accumulate_sequential(tree_of_segments, image, hg.Accumulators.sum)
+
+#area = area[n_map_objs][tree_objs.num_leaves():]
+unique_segment_ids = np.arange(tree_of_segments.num_vertices())[::-1]
+
+helper.save_parameters(
+    unique_segment_ids[tree_of_segments.num_leaves():][::-1],
+    x[::-1],
+    y[::-1],
+    ra[::-1],
+    dec[::-1],
+    flux[tree_of_segments.num_leaves():][::-1],
+    flux[tree_of_segments.num_leaves():][::-1] - parent_altitude[n_map_segments][tree_of_segments.num_leaves():][::-1],
+    area[n_map_segments][tree_of_segments.num_leaves():][::-1],
+    a[tree_of_segments.num_leaves():][::-1],
+    b[tree_of_segments.num_leaves():][::-1],
+    theta[tree_of_segments.num_leaves():][::-1],
+)
 
