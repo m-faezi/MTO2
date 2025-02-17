@@ -1,13 +1,20 @@
+import argparse
 import higra as hg
 import numpy as np
 import background
 import helper
 from PIL import Image, ImageOps
 
+# Set up argument parsing
+parser = argparse.ArgumentParser()
+parser.add_argument('file_path', type=str, help='Path to the image file')
+args = parser.parse_args()
 
-data_path = '../MTO-2.0/data/NGC4307_Sloan-g.fits'
+# Use the provided file path
+data_path = args.file_path
+
 #image, header = helper.read_image_data(data_path, 1000, 9000, 1000, 9000)
-image, header = helper.read_image_data(data_path, 3500, 6500, 3500, 6500)
+image, header = helper.read_image_data(data_path)
 image = helper.image_value_check(image)
 image = helper.smooth_filter(image)
 

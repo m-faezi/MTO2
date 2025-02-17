@@ -12,53 +12,21 @@ import pandas as pd
 from sklearn.cluster import KMeans
 
 
-def read_image_data(file_path, y_min=0, y_max=-1, x_min=0, x_max=-1):
+def read_image_data(file_path):
     with fits.open(file_path) as hdu_list:
-        # Attempt to get the first valid image HDU
-        image_hdu = None
-        for hdu in hdu_list:
-            if hdu.data is not None:
-                image_hdu = hdu
-                break
+
+        image_hdu = next((hdu for hdu in hdu_list if hdu.data is not None), None)
 
         if image_hdu is None:
             raise ValueError("No valid image data found in the FITS file.")
 
-        # Handle negative slicing values
-        full_image = image_hdu.data
-        if y_max == -1:
-            y_max = full_image.shape[0]  # Use full height
-        if x_max == -1:
-            x_max = full_image.shape[1]  # Use full width
-
-        # Ensure indices are within bounds
-        y_min = max(0, y_min)
-        y_max = min(full_image.shape[0], y_max)
-        x_min = max(0, x_min)
-        x_max = min(full_image.shape[1], x_max)
-
-        # Slice the image data
-        image = full_image[y_min:y_max, x_min:x_max]
-
-        # Update header information
+        image = image_hdu.data
         header = image_hdu.header.copy()
 
-        # Adjust CRPIX1 and CRPIX2 (reference pixel) for the new crop
-        if 'CRPIX1' in header and 'CRPIX2' in header:
-            header['CRPIX1'] -= x_min
-            header['CRPIX2'] -= y_min
-
-        # Update the NAXIS1 and NAXIS2 to reflect the new image size
-        header['NAXIS1'] = image.shape[1]
-        header['NAXIS2'] = image.shape[0]
-
-    # Return the cropped image and the updated header
     return image, header
 
 
 def image_value_check(image):
-
-    # image[image < 0] = 0
 
     if np.isnan(image).any():
         min_value = np.nanmin(image)
