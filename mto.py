@@ -73,7 +73,7 @@ seg = hg.reconstruct_leaf_data(tree_of_segments, colors)
 
 segmentation_image = Image.fromarray(seg.astype(np.uint8))
 segmentation_image = ImageOps.flip(segmentation_image)
-segmentation_image.save('MTO-detection-crop-g-1000,0_centerrrrrr.png', 'PNG', quality=95)
+segmentation_image.save('MTO-detection.png', 'PNG', quality=95)
 
 # Save the segmentation with unique IDs to a FITS file
 unique_segment_ids = np.arange(tree_of_segments.num_vertices())[::-1]
