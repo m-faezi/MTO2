@@ -14,16 +14,14 @@ rejection_rate_2 = 0
 
 
 def estimate_background(img, rejection_rate=0.05):
+
     global rejection_rate_1, rejection_rate_2
-    print("\n---Estimating background---")
     rejection_rate_1 = 1 - pow(1 - rejection_rate, 0.5)
     rejection_rate_2 = 1 - pow(1 - rejection_rate, 0.25)
     tile_size = largest_flat_tile(img)
 
     if tile_size == 0:
         return estimate_structural_background(img)
-
-    print("Using a tile size of", tile_size, "in the background")
 
     return collect_info(img, tile_size)
 
@@ -64,7 +62,6 @@ def collect_info(img, tile_length):
             if check_tile_is_flat(img[y: y + tile_length, x: x + tile_length]):
                 flat_tiles.append([x, y])
 
-    print("Number of usable tiles:", len(flat_tiles))
     return est_mean_and_variance_gain(img, tile_length, flat_tiles)
 
 

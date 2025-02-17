@@ -60,7 +60,18 @@ significant_nodes = helper.attribute_statistical_significance(
 
 objects = helper.select_objects(tree_structure, significant_nodes)
 
-modified_isophote = helper.move_up(tree_structure, altitudes, area, objects, bg_var, bg_gain, parent_gamma - gamma, volume / parent_volume, gaussian_intensities, 1000.0)
+modified_isophote = helper.move_up(
+    tree_structure,
+    altitudes,
+    area,
+    objects,
+    bg_var,
+    bg_gain,
+    parent_gamma - gamma,
+    volume / parent_volume,
+    gaussian_intensities,
+    0.5
+)
 
 tree_of_segments, n_map_segments = hg.simplify_tree(
     tree_structure,
