@@ -34,14 +34,8 @@ gaussian_intensities = helper.compute_gaussian_profile(
     mean,
     variance,
     distances,
+    altitudes/area
 ) / area
-
-#gaussian_intensities = helper.compute_gaussian_profile_2(
-#    mean,
-#    variance,
-#    distances,
-#    altitudes/area
-#) / area
 
 volume = hg.attribute_volume(tree_structure, altitudes)
 parent_volume = volume[tree_structure.parents()]

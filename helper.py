@@ -219,16 +219,13 @@ def gaussian_profile(I_0, sigma, R, mu=0):
     sigma = np.maximum(sigma, epsilon)  # Avoid division by zero
     return I_0 * np.exp(-((R - mu) ** 2) / (2 * sigma ** 2))
 
-def compute_gaussian_profile(mean, variance, distances, center=0):
-    """Compute the Gaussian model for intensity."""
-    I_0 = mean
-    sigma = np.sqrt(np.maximum(variance, 0))  # Ensure non-negative variance
-    gaussian_intensity = gaussian_profile(I_0, sigma, distances, mu=center)
-    return gaussian_intensity
 
-def compute_gaussian_profile_2(mean, variance, distances, intensity, center=0):
+def compute_gaussian_profile(mean, variance, distances, intensity, center=0):
     """Compute the Gaussian model for intensity."""
-    I_0 = mean - intensity
+
+    #TODO: check "I_0 = mean - intensity"
+    I_0 = mean
+
     sigma = np.sqrt(np.maximum(variance, 0))  # Ensure non-negative variance
     gaussian_intensity = gaussian_profile(I_0, sigma, distances, mu=center)
     return gaussian_intensity
