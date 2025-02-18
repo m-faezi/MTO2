@@ -7,4 +7,5 @@ scikit-learn
 scipy
 fuzzy-c-means
 pillow
+pandas
 
