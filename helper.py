@@ -250,7 +250,7 @@ def sky_coordinates(y, x, header):
     return ra, dec
 
 
-def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta):
+def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta, file_name):
     parameters = {
         "Segment_ID": id,
         "X":x,
@@ -265,7 +265,7 @@ def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta)
         "Theta": theta,
     }
     parameters_df = pd.DataFrame(parameters)
-    parameters_df.to_csv('parameters.csv', index=False)
+    parameters_df.to_csv(file_name, index=False)
 
 
 def total_flux(tree, size, image):
@@ -385,7 +385,7 @@ def select_objects(tree, significant_nodes):
     return res
 
 
-def move_up(tree, altitudes, area, objects, background_var, gain, gamma_distance, volume_ratio, gaussian, alambda=0.5):
+def move_up(tree, altitudes, area, objects, background_var, gain, gamma_distance, volume_ratio, gaussian, move_factor):
     # true if a node is in the main branch of its parent
     main_branch = attribute_main_branch(tree)
 
@@ -399,7 +399,7 @@ def move_up(tree, altitudes, area, objects, background_var, gain, gamma_distance
     target_altitudes = altitudes.copy()
     object_indexes, = np.nonzero(objects)
     local_noise = np.sqrt(background_var + altitudes[tree.parent(object_indexes)] / gain)
-    target_altitudes[object_indexes] = altitudes[object_indexes] + alambda * local_noise
+    target_altitudes[object_indexes] = altitudes[object_indexes] + move_factor * local_noise
 
     # target altitude associated to the closest object anacestor in the main branch, self altitude otherwise
     target_altitudes = target_altitudes[closest_object_ancestor]

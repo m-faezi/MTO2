@@ -8,10 +8,18 @@ from PIL import Image, ImageOps
 # Set up argument parsing
 parser = argparse.ArgumentParser()
 parser.add_argument('file_path', type=str, help='Path to the image file')
+parser.add_argument(
+    '--move_factor',
+    type=float,
+    default=0.5,
+    help='move_factor parameter for isophote correction (default = 0.5)'
+)
+
 args = parser.parse_args()
 
 # Use the provided file path
 data_path = args.file_path
+move_factor = args.move_factor
 
 #image, header = helper.read_image_data(data_path, 1000, 9000, 1000, 9000)
 image, header = helper.read_image_data(data_path)
@@ -64,7 +72,7 @@ modified_isophote = helper.move_up(
     parent_gamma - gamma,
     volume / parent_volume,
     gaussian_intensities,
-    0.5
+    move_factor
 )
 
 tree_of_segments, n_map_segments = hg.simplify_tree(
@@ -78,12 +86,12 @@ seg = hg.reconstruct_leaf_data(tree_of_segments, colors)
 
 segmentation_image = Image.fromarray(seg.astype(np.uint8))
 segmentation_image = ImageOps.flip(segmentation_image)
-segmentation_image.save('MTO-detection.png', 'PNG', quality=95)
+#segmentation_image.save('MTO-segmentation.png', 'PNG', quality=95)
 
 # Save the segmentation with unique IDs to a FITS file
 unique_segment_ids = np.arange(tree_of_segments.num_vertices())[::-1]
 seg_with_ids = hg.reconstruct_leaf_data(tree_of_segments, unique_segment_ids)
-helper.save_fits_with_header(seg_with_ids, header, 'MTO-detection.fits')
+#helper.save_fits_with_header(seg_with_ids, header, 'MTO-segmentation.fits')
 
 '''parameter extraction'''
 x = x[n_map_segments][tree_of_segments.num_leaves():]
@@ -96,6 +104,19 @@ flux = hg.accumulate_sequential(tree_of_segments, image, hg.Accumulators.sum)
 #area = area[n_map_objs][tree_objs.num_leaves():]
 unique_segment_ids = np.arange(tree_of_segments.num_vertices())[::-1]
 
+move_factor_str = str(move_factor).replace('.', '_')
+
+output_png = f'MTO-move_factor-{move_factor_str}.png'
+output_fits = f'MTO-move_factor-{move_factor_str}.fits'
+output_params = f'MTO-move_factor-{move_factor_str}.csv'
+
+# Save segmentation image
+segmentation_image.save(output_png, 'PNG', quality=95)
+
+# Save segmentation as a FITS file
+helper.save_fits_with_header(seg_with_ids, header, output_fits)
+
+# Save extracted parameters
 helper.save_parameters(
     unique_segment_ids[tree_of_segments.num_leaves():][::-1],
     x[::-1],
@@ -108,5 +129,6 @@ helper.save_parameters(
     a[tree_of_segments.num_leaves():][::-1],
     b[tree_of_segments.num_leaves():][::-1],
     theta[tree_of_segments.num_leaves():][::-1],
+    file_name=output_params  # Pass dynamically generated filename
 )
 
