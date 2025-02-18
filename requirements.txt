@@ -1,0 +1,10 @@
+
+higra
+numpy
+astropy
+scikit-image
+scikit-learn
+scipy
+fuzzy-c-means
+pillow
+

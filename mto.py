@@ -14,12 +14,15 @@ parser.add_argument(
     default=0.5,
     help='move_factor parameter for isophote correction (default = 0.5)'
 )
+parser.add_argument('--par_out', action='store_true', help='Extract and save parameters, if set')
+
 
 args = parser.parse_args()
 
 # Use the provided file path
 data_path = args.file_path
 move_factor = args.move_factor
+par_out = args.par_out
 
 #image, header = helper.read_image_data(data_path, 1000, 9000, 1000, 9000)
 image, header = helper.read_image_data(data_path)
@@ -116,19 +119,32 @@ segmentation_image.save(output_png, 'PNG', quality=95)
 # Save segmentation as a FITS file
 helper.save_fits_with_header(seg_with_ids, header, output_fits)
 
-# Save extracted parameters
-helper.save_parameters(
-    unique_segment_ids[tree_of_segments.num_leaves():][::-1],
-    x[::-1],
-    y[::-1],
-    ra[::-1],
-    dec[::-1],
-    flux[tree_of_segments.num_leaves():][::-1],
-    flux[tree_of_segments.num_leaves():][::-1] - parent_altitude[n_map_segments][tree_of_segments.num_leaves():][::-1],
-    area[n_map_segments][tree_of_segments.num_leaves():][::-1],
-    a[tree_of_segments.num_leaves():][::-1],
-    b[tree_of_segments.num_leaves():][::-1],
-    theta[tree_of_segments.num_leaves():][::-1],
-    file_name=output_params  # Pass dynamically generated filename
-)
+
+if par_out:
+    print("Extracting and saving parameters...")
+
+    x = x[n_map_segments][tree_of_segments.num_leaves():]
+    y = y[n_map_segments][tree_of_segments.num_leaves():]
+    ra, dec = helper.sky_coordinates(y, x, header)
+
+    a, b, theta = helper.second_order_moments(tree_of_segments, image.shape[:2], image)
+    flux = hg.accumulate_sequential(tree_of_segments, image, hg.Accumulators.sum)
+
+    helper.save_parameters(
+        unique_segment_ids[tree_of_segments.num_leaves():][::-1],
+        x[::-1],
+        y[::-1],
+        ra[::-1],
+        dec[::-1],
+        flux[tree_of_segments.num_leaves():][::-1],
+        flux[tree_of_segments.num_leaves():][::-1] - parent_altitude[n_map_segments][tree_of_segments.num_leaves():][
+                                                     ::-1],
+        area[n_map_segments][tree_of_segments.num_leaves():][::-1],
+        a[tree_of_segments.num_leaves():][::-1],
+        b[tree_of_segments.num_leaves():][::-1],
+        theta[tree_of_segments.num_leaves():][::-1],
+        file_name=output_params
+    )
+
+    print(f"Parameters saved to {output_params}")
 
