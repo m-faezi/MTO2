@@ -27,7 +27,7 @@ To include more faint outskirts of objects, a lower move_factor value is recomme
 
 To extract and save parameters:
 
-	python script.py image.fits --move_factor x.x --par_out
+	python mto.py [input image path] -move_factor <float> --par_out
 
 --------------------------
 
