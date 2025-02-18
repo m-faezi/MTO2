@@ -185,7 +185,8 @@ def mark_non_unique(array):
 
 def gaussian_profile(I_0, sigma, R, mu=0):
 
-    epsilon = 1e-10  # Small value to avoid numerical instability
+    # epsilon = 1e-10
+    epsilon = np.finfo(float).eps
     sigma = np.maximum(sigma, epsilon)  # Avoid division by zero
 
     return I_0 * np.exp(-((R - mu) ** 2) / (2 * sigma ** 2))
