@@ -35,8 +35,9 @@ Arguments:
 
   -h, --help            Show the help message and exit
 
- -par_out		        Saves in .csv format
+ -move_factor           Adjust the spread of objects (default = 0.5)
+
+ -par_out		        Extract and save parameters in .csv format
  
- -move_factor          Higher values reduce the spread of objects (default = 0.5)
 
 -------------------------
