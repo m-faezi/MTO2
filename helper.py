@@ -305,7 +305,7 @@ def second_order_moments(tree, size, image):
     return major_axis, minor_axis, theta
 
 
-def attribute_statistical_significance(tree, altitudes, volume, area, background_var, gain, alpha=1-1e-6):
+def attribute_statistical_significance(tree, altitudes, volume, area, background_var, gain, alpha=1e-6):
 
     denominator = background_var + altitudes[tree.parents()] / gain
     safe_denominator = np.where(denominator == 0, np.finfo(float).eps, denominator)
