@@ -5,7 +5,6 @@ import background
 import helper
 from PIL import Image, ImageOps
 
-# Set up argument parsing
 parser = argparse.ArgumentParser()
 parser.add_argument('file_path', type=str, help='Path to the image file')
 parser.add_argument(
@@ -16,15 +15,11 @@ parser.add_argument(
 )
 parser.add_argument('--par_out', action='store_true', help='Extract and save parameters, if set')
 
-
 args = parser.parse_args()
-
-# Use the provided file path
 data_path = args.file_path
 move_factor = args.move_factor
 par_out = args.par_out
 
-#image, header = helper.read_image_data(data_path, 1000, 9000, 1000, 9000)
 image, header = helper.read_image_data(data_path)
 image = helper.image_value_check(image)
 image = helper.smooth_filter(image)
@@ -82,41 +77,22 @@ tree_of_segments, n_map_segments = hg.simplify_tree(
     tree_structure,
     np.logical_not(modified_isophote)
 )
-# construct final segmentation with random colors as labels
+
 colors = np.random.randint(0, 256, (tree_of_segments.num_vertices(), 3), dtype=np.uint8)
 colors[tree_of_segments.root(),:] = 0
 seg = hg.reconstruct_leaf_data(tree_of_segments, colors)
 
 segmentation_image = Image.fromarray(seg.astype(np.uint8))
 segmentation_image = ImageOps.flip(segmentation_image)
-#segmentation_image.save('MTO-segmentation.png', 'PNG', quality=95)
-
-# Save the segmentation with unique IDs to a FITS file
 unique_segment_ids = np.arange(tree_of_segments.num_vertices())[::-1]
 seg_with_ids = hg.reconstruct_leaf_data(tree_of_segments, unique_segment_ids)
-#helper.save_fits_with_header(seg_with_ids, header, 'MTO-segmentation.fits')
-
-'''parameter extraction'''
-x = x[n_map_segments][tree_of_segments.num_leaves():]
-y = y[n_map_segments][tree_of_segments.num_leaves():]
-ra, dec = helper.sky_coordinates(y, x, header)
-
-a, b, theta = helper.second_order_moments(tree_of_segments, image.shape[:2], image)
-flux = hg.accumulate_sequential(tree_of_segments, image, hg.Accumulators.sum)
-
-#area = area[n_map_objs][tree_objs.num_leaves():]
-unique_segment_ids = np.arange(tree_of_segments.num_vertices())[::-1]
 
 move_factor_str = str(move_factor).replace('.', '_')
-
 output_png = f'MTO-move_factor-{move_factor_str}.png'
 output_fits = f'MTO-move_factor-{move_factor_str}.fits'
 output_params = f'MTO-move_factor-{move_factor_str}.csv'
 
-# Save segmentation image
 segmentation_image.save(output_png, 'PNG', quality=95)
-
-# Save segmentation as a FITS file
 helper.save_fits_with_header(seg_with_ids, header, output_fits)
 
 
@@ -137,8 +113,8 @@ if par_out:
         ra[::-1],
         dec[::-1],
         flux[tree_of_segments.num_leaves():][::-1],
-        flux[tree_of_segments.num_leaves():][::-1] - parent_altitude[n_map_segments][tree_of_segments.num_leaves():][
-                                                     ::-1],
+        flux[tree_of_segments.num_leaves():][::-1] -
+        parent_altitude[n_map_segments][tree_of_segments.num_leaves():][::-1],
         area[n_map_segments][tree_of_segments.num_leaves():][::-1],
         a[tree_of_segments.num_leaves():][::-1],
         b[tree_of_segments.num_leaves():][::-1],
