@@ -153,8 +153,6 @@ def estimate_structural_background(image):
     )
 
     non_bool_unique_topological_height = helper.mark_non_unique(topological_height)
-
-    # Mask the feature arrays for fuzzy binary clustering
     masked_topological_height = topological_height[~non_bool_unique_topological_height]
     masked_area = area[~non_bool_unique_topological_height]
     masked_volume = volume[~non_bool_unique_topological_height]
