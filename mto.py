@@ -1,8 +1,8 @@
+import helper
 import argparse
 import higra as hg
 import numpy as np
 import background
-import helper
 from PIL import Image, ImageOps
 
 parser = argparse.ArgumentParser()

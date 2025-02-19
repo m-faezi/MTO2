@@ -1,16 +1,15 @@
-import numpy
 import numpy as np
 import higra as hg
+import pandas as pd
 from fcmeans import FCM
 from astropy.io import fits
+from astropy.wcs import WCS
+from scipy.stats import chi2
+from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from scipy.ndimage import gaussian_filter
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import MiniBatchKMeans
-from astropy.wcs import WCS
-import pandas as pd
-from sklearn.cluster import KMeans
-from scipy.stats import chi2
 
 
 def read_image_data(file_path):
