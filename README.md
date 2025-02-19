@@ -23,11 +23,11 @@
 
 #### To include more faint outskirts of objects, a lower move_factor value is recommended: 
 
-	$ python mto.py [input image path] -move_factor <float>
+	$ python mto.py [input image path] --move_factor <float>
 
 #### To extract and save parameters:
 
-	$ python mto.py [input image path] -move_factor <float> --par_out
+	$ python mto.py [input image path] --move_factor <float> --par_out
 
 --------------------------
 
