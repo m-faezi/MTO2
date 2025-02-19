@@ -8,8 +8,8 @@ from scipy.stats import chi2
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from scipy.ndimage import gaussian_filter
-from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import MiniBatchKMeans
+from sklearn.preprocessing import StandardScaler
 
 
 def read_image_data(file_path):
