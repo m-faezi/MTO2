@@ -4,11 +4,8 @@ import helper
 from scipy import stats
 
 
-"""Background estimation"""
-
-_REJECT_TILE = False
-_ACCEPT_TILE = True
-
+_reject_tile = False
+_accept_tile = True
 rejection_rate_1 = 0
 rejection_rate_2 = 0
 
@@ -21,27 +18,36 @@ def estimate_background(img, rejection_rate=0.05):
     tile_size = largest_flat_tile(img)
 
     if tile_size == 0:
+
         return estimate_structural_background(img)
 
     return collect_info(img, tile_size)
 
 
 def largest_flat_tile(img, tile_size_start=6, tile_size_min=4, tile_size_max=7):
+
     current_size = 2**tile_size_start
     max_size = 2**tile_size_max
     min_size = 2**tile_size_min
 
     if available_tiles(img, current_size):
+
         while current_size < max_size:
             current_size *= 2
             if not available_tiles(img, current_size):
+
                 return int(current_size/2)
+
         return max_size
+
     else:
+
         while current_size > min_size:
             current_size = int(current_size / 2)
             if available_tiles(img, current_size):
+
                 return min_size
+
     return 0
 
 
@@ -50,11 +56,14 @@ def available_tiles(img, tile_length):
     for y in range(0, img.shape[0] - tile_length, tile_length):
         for x in range(0, img.shape[1] - tile_length, tile_length):
             if check_tile_is_flat(img[y: y + tile_length, x: x + tile_length]):
+
                 return True
+
     return False
 
 
 def collect_info(img, tile_length):
+
     flat_tiles = []
 
     for y in range(0, img.shape[0] - tile_length, tile_length):
@@ -66,19 +75,24 @@ def collect_info(img, tile_length):
 
 
 def check_tile_is_flat(tile):
+
     if np.all(tile == 0):
-        return _REJECT_TILE
+
+        return _reject_tile
 
     if np.count_nonzero(~np.isnan(tile)) == 0:
-        return _REJECT_TILE
+
+        return _reject_tile
 
     if test_normality(tile, rejection_rate_1) is False:
-        return _REJECT_TILE
+
+        return _reject_tile
 
     if check_tile_means(tile, rejection_rate_2) is False:
-        return _REJECT_TILE
 
-    return _ACCEPT_TILE
+        return _reject_tile
+
+    return _accept_tile
 
 
 def check_tile_means(tile, sig_level):
@@ -87,34 +101,45 @@ def check_tile_means(tile, sig_level):
     half_width = int(tile.shape[1] / 2)
 
     if not test_mean_equality(tile[:half_height, :], tile[half_height:, :], sig_level):
-        return _REJECT_TILE
+
+        return _reject_tile
 
     if not test_mean_equality(
             tile[:, :half_width], tile[:, half_width:], sig_level):
-        return _REJECT_TILE
 
-    return _ACCEPT_TILE
+        return _reject_tile
+
+    return _accept_tile
 
 
 def test_normality(array, test_statistic):
+
     k2, p = stats.normaltest(array.ravel(), nan_policy='omit')
 
     if p < test_statistic:
-        return _REJECT_TILE
+
+        return _reject_tile
+
     else:
-        return _ACCEPT_TILE
+
+        return _accept_tile
 
 
 def test_mean_equality(array_a, array_b, test_statistic):
+
     s, p = stats.ttest_ind(array_a.ravel(), array_b.ravel(), nan_policy='omit')
 
     if p < test_statistic:
-        return _REJECT_TILE
+
+        return _reject_tile
+
     else:
-        return _ACCEPT_TILE
+
+        return _accept_tile
 
 
 def est_mean_and_variance_gain(img, tile_length, usable):
+
     total_bg = np.vstack(
         [img[u[1]: u[1] + tile_length, u[0]: u[0] + tile_length] for u in usable]
     )
@@ -128,19 +153,22 @@ def est_mean_and_variance_gain(img, tile_length, usable):
     bg_mean = np.nanmean(total_bg, axis=None)
     bg_var = np.nanvar(total_bg, axis=None)
     gain = (bg_mean - soft_bias) / bg_var
+
     return bg_mean, bg_var, gain
 
 
 def replace_nans(img, value=np.inf):
 
     if value == 0:
+
         return np.nan_to_num(img)
+
     else:
         img[np.isnan(img)] = value
+
         return img
 
 
-"New background"
 def estimate_structural_background(image):
 
     graph_structure, tree_structure, altitudes = helper.image_to_hierarchical_structure(image)
@@ -160,7 +188,13 @@ def estimate_structural_background(image):
     masked_distance_to_root = distance_to_root_center[~non_bool_unique_topological_height]
 
     all_labels = helper.fuzz_bg_structure(
-        [masked_topological_height, masked_area, masked_volume, masked_altitudes, masked_distance_to_root],
+        [
+            masked_topological_height,
+            masked_area,
+            masked_volume,
+            masked_altitudes,
+            masked_distance_to_root
+        ],
         non_bool_unique_topological_height,
         altitudes
     )
