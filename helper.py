@@ -14,6 +14,7 @@ from scipy.stats import chi2
 
 
 def read_image_data(file_path):
+
     with fits.open(file_path) as hdu_list:
 
         image_hdu = next((hdu for hdu in hdu_list if hdu.data is not None), None)
@@ -63,6 +64,7 @@ def smooth_filter(image, sigma=2):
 
 
 def image_to_hierarchical_structure(image):
+    
     graph_structure = hg.get_8_adjacency_graph(image.shape)
     tree_structure, altitudes = hg.component_tree_max_tree(graph_structure, image)
 
