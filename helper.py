@@ -186,9 +186,8 @@ def mark_non_unique(array):
 
 def gaussian_profile(I_0, sigma, R, mu=0):
 
-    # epsilon = 1e-10
     epsilon = np.finfo(float).eps
-    sigma = np.maximum(sigma, epsilon)  # Avoid division by zero
+    sigma = np.maximum(sigma, epsilon)
 
     return I_0 * np.exp(-((R - mu) ** 2) / (2 * sigma ** 2))
 
@@ -207,6 +206,8 @@ def save_fits_with_header(data, header, output_path):
 
     hdu = fits.PrimaryHDU(data, header=header)
     hdu.writeto(output_path, overwrite=True)
+
+    return None
 
 
 def sky_coordinates(y, x, header):
@@ -237,6 +238,8 @@ def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta,
     }
     parameters_df = pd.DataFrame(parameters)
     parameters_df.to_csv(file_name, index=False)
+
+    return None
 
 
 def total_flux(tree, size, image):
@@ -359,7 +362,7 @@ def move_up(tree, altitudes, area, objects, background_var, gain, gamma_distance
     target_altitudes = target_altitudes[closest_object_ancestor]
     valid_moves = np.logical_and(
         np.logical_and(altitudes >= target_altitudes, objects[closest_object_ancestor]),
-        #altitudes/area>=gaussian,
+        #TODO: check: "altitudes/area>=gaussian"
         altitudes>=gaussian,
     )
 
