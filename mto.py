@@ -34,7 +34,7 @@ def main():
 
     x, y = helper.centroid(tree_structure, image.shape[:2])
     distances = np.sqrt((x[tree_structure.parents()] - x) ** 2 + (y[tree_structure.parents()] - y) ** 2)
-    mean, variance = hg.attribute_gaussian_region_weights_model(tree_structure, image)
+    mean, variance = hg.attribute_gaussian_region_weights_model(tree_structure, image_calibrated)
     area = hg.attribute_area(tree_structure)
 
     gaussian_intensities = helper.compute_gaussian_profile(
