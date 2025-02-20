@@ -78,7 +78,7 @@ def main():
 
     if par_out:
 
-        print("Extracting and saving parameters...")
+        print("Extracting parameters...")
         x = x[n_map_segments][tree_of_segments.num_leaves():]
         y = y[n_map_segments][tree_of_segments.num_leaves():]
         ra, dec = helper.sky_coordinates(y, x, header)
