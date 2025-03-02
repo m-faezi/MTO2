@@ -17,11 +17,13 @@ def main():
         help='move_factor parameter for isophote correction (default = 0.5)'
     )
     parser.add_argument('--par_out', action='store_true', help='Extract and save parameters, if set')
+    parser.add_argument('--reduce', action='store_true', help='Returns background subtracted image')
 
     args = parser.parse_args()
     data_path = args.file_path
     move_factor = args.move_factor
     par_out = args.par_out
+    reduce = args.reduce
 
     image, header = helper.read_image_data(data_path)
     image = helper.image_value_check(image)
@@ -72,6 +74,7 @@ def main():
     output_png = f'MTO-move_factor-{move_factor_str}.png'
     output_fits = f'MTO-move_factor-{move_factor_str}.fits'
     output_params = f'MTO-move_factor-{move_factor_str}.csv'
+    reduced_fits = f'MTO-reduced.fits'
 
     segmentation_image.save(output_png, 'PNG', quality=95)
     helper.save_fits_with_header(seg_with_ids, header, output_fits)
@@ -102,6 +105,9 @@ def main():
             file_name=output_params
         )
         print(f"Parameters saved to {output_params}")
+
+    if reduce:
+        helper.save_fits_with_header(image_calibrated, header, reduced_fits)
 
 
 if __name__ == "__main__":
