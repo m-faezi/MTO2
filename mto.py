@@ -27,10 +27,10 @@ def main():
 
     image, header = helper.read_image_data(data_path)
     image = helper.image_value_check(image)
-    image = helper.smooth_filter(image)
+    image_processed = helper.smooth_filter(image)
 
-    bg_mean, bg_var, bg_gain = background.estimate_background(image)
-    image_calibrated = image - bg_mean
+    bg_mean, bg_var, bg_gain = background.estimate_background(image_processed)
+    image_calibrated = image_processed - bg_mean
 
     graph_structure, tree_structure, altitudes = helper.image_to_hierarchical_structure(image_calibrated)
 
@@ -107,7 +107,7 @@ def main():
         print(f"Parameters saved to {output_params}")
 
     if reduce:
-        helper.save_fits_with_header(image_calibrated, header, reduced_fits)
+        helper.save_fits_with_header(image - bg_mean, header, reduced_fits)
 
 
 if __name__ == "__main__":
