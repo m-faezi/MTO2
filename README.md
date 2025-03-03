@@ -39,7 +39,7 @@
 #### Arguments:
 
 ```yaml
--h, --help           Show the help message and exit
--move_factor         Adjust the spread of objects (default = 0.5)
--par_out	     Extract and save parameters in .csv format
--reduce	             Return background subtracted image
+-h, --help            Show the help message and exit
+--move_factor         Adjust the spread of objects (default = 0.5)
+--par_out	      Extract and save parameters in .csv format
+--reduce	      Return background subtracted image
