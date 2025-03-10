@@ -33,7 +33,7 @@ def image_value_check(image):
         min_value = np.nanmin(image)
         image[np.isnan(image)] = min_value
 
-    return image
+    return np.abs(image)
 
 
 def image_value_check_2(image):
@@ -82,8 +82,8 @@ def centroid(tree, size):
     m00 = m[:, 0]
     m10 = m[:, 1]
     m01 = m[:, 2]
-    x_mean = m10 / m00
-    y_mean = m01 / m00
+    x_mean = np.divide(m10, m00, out=np.zeros_like(m10), where=m00 != 0)
+    y_mean = np.divide(m01, m00, out=np.zeros_like(m01), where=m00 != 0)
 
     return x_mean, y_mean
 
@@ -107,8 +107,8 @@ def weighted_centroid(tree, size, image):
     m10 = m[:, 1]
     m01 = m[:, 2]
 
-    x_mean = m10 / m00
-    y_mean = m01 / m00
+    x_mean = np.divide(m10, m00, out=np.zeros_like(m10), where=m00 != 0)
+    y_mean = np.divide(m01, m00, out=np.zeros_like(m01), where=m00 != 0)
 
     return x_mean, y_mean
 
@@ -186,7 +186,7 @@ def mark_non_unique(array):
 
 def gaussian_profile(I_0, sigma, R, mu=0):
 
-    epsilon = np.finfo(float).eps
+    epsilon = np.finfo(np.float64).eps
     sigma = np.maximum(sigma, epsilon)
 
     return I_0 * np.exp(-((R - mu) ** 2) / (2 * sigma ** 2))
@@ -196,6 +196,7 @@ def compute_gaussian_profile(mean, variance, distances, intensity, center=0):
 
     #TODO: check "I_0 = mean - intensity"
     I_0 = mean
+    np.nan_to_num(variance, nan=0)
     sigma = np.sqrt(np.maximum(variance, 0))  # Ensure non-negative variance
     gaussian_intensity = gaussian_profile(I_0, sigma, distances, mu=center)
 
@@ -345,7 +346,7 @@ def select_objects(tree, significant_nodes):
     return res
 
 
-def move_up(tree, altitudes, area, objects, background_var, gain, gamma_distance, volume_ratio, gaussian, move_factor):
+def move_up(tree, altitudes, area, distances, objects, background_var, gain, gamma_distance, gaussian, move_factor):
 
     main_branch = attribute_main_branch(tree)
 
@@ -361,9 +362,15 @@ def move_up(tree, altitudes, area, objects, background_var, gain, gamma_distance
 
     target_altitudes = target_altitudes[closest_object_ancestor]
     valid_moves = np.logical_and(
-        np.logical_and(altitudes >= target_altitudes, objects[closest_object_ancestor]),
-        #TODO: check: "altitudes/area>=gaussian"
-        altitudes>=gaussian,
+        np.logical_and(
+            altitudes >= target_altitudes,
+            np.logical_and(
+                np.sqrt(area/np.pi) > distances,
+                objects[closest_object_ancestor]
+            )
+        ),
+        #TODO: check: "altitudes/area<=gaussian"
+        altitudes<=gaussian,
     )
 
     parent_closest_object_ancestor = closest_object_ancestor[tree.parents()]

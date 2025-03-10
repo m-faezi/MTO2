@@ -1,0 +1,3 @@
+[console_scripts]
+fcm=fcmeans.cli:app
+

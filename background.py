@@ -187,14 +187,21 @@ def estimate_structural_background(image):
     masked_altitudes = altitudes[~non_bool_unique_topological_height]
     masked_distance_to_root = distance_to_root_center[~non_bool_unique_topological_height]
 
+    features = [
+        masked_topological_height,
+        masked_area,
+        masked_volume,
+        masked_altitudes,
+        masked_distance_to_root
+    ]
+
+    filtered_features = [feature for feature in features if not np.isnan(feature).any()]
+
+    if not filtered_features:
+        raise ValueError("All features contain NaN values. No valid features to process.")
+
     all_labels = helper.fuzz_bg_structure(
-        [
-            masked_topological_height,
-            masked_area,
-            masked_volume,
-            masked_altitudes,
-            masked_distance_to_root
-        ],
+        filtered_features,
         non_bool_unique_topological_height,
         altitudes
     )

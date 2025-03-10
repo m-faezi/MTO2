@@ -40,11 +40,10 @@ def main():
     area = hg.attribute_area(tree_structure)
 
     gaussian_intensities = helper.compute_gaussian_profile(
-        mean, variance, distances, altitudes / area
-    ) / area
+        mean, variance, distances, altitudes / area+1
+    ) / area+1
 
     volume = hg.attribute_volume(tree_structure, altitudes)
-    parent_volume = volume[tree_structure.parents()]
     parent_altitude = altitudes[tree_structure.parents()]
     gamma = hg.attribute_topological_height(tree_structure)
     parent_gamma = gamma[tree_structure.parents()]
@@ -55,13 +54,13 @@ def main():
     objects = helper.select_objects(tree_structure, significant_nodes)
 
     modified_isophote = helper.move_up(
-        tree_structure, altitudes, area, objects, bg_var, bg_gain,
-        parent_gamma - gamma, volume / parent_volume, gaussian_intensities, move_factor
+        tree_structure, altitudes, area, distances, objects, bg_var, bg_gain,
+        parent_gamma - gamma, gaussian_intensities, move_factor
     )
 
     tree_of_segments, n_map_segments = hg.simplify_tree(tree_structure, np.logical_not(modified_isophote))
 
-    colors = np.random.randint(0, 256, (tree_of_segments.num_vertices(), 3), dtype=np.uint8)
+    colors = np.random.randint(0, 255, (tree_of_segments.num_vertices(), 3), dtype=np.uint8)
     colors[tree_of_segments.root(), :] = 0
     seg = hg.reconstruct_leaf_data(tree_of_segments, colors)
 
@@ -76,7 +75,7 @@ def main():
     output_params = f'MTO-move_factor-{move_factor_str}.csv'
     reduced_fits = f'MTO-reduced.fits'
 
-    segmentation_image.save(output_png, 'PNG', quality=95)
+    segmentation_image.save(output_png, 'PNG', quality=720)
     helper.save_fits_with_header(seg_with_ids, header, output_fits)
 
     if par_out:
