@@ -346,7 +346,9 @@ def select_objects(tree, significant_nodes):
     return res
 
 
-def move_up(tree, altitudes, area, distances, objects, background_var, gain, gamma_distance, gaussian, move_factor):
+def move_up(
+    tree, altitudes, area, parent_area, distances, objects, background_var, gain, gamma_distance, gaussian, move_factor
+):
 
     main_branch = attribute_main_branch(tree)
 
@@ -366,7 +368,10 @@ def move_up(tree, altitudes, area, distances, objects, background_var, gain, gam
             altitudes >= target_altitudes,
             np.logical_and(
                 np.sqrt(area/np.pi) > distances,
-                objects[closest_object_ancestor]
+                np.logical_and(
+                    objects[closest_object_ancestor],
+                    area/parent_area >= .78
+                )
             )
         ),
         #TODO: check: "altitudes/area<=gaussian"

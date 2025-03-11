@@ -38,6 +38,7 @@ def main():
     distances = np.sqrt((x[tree_structure.parents()] - x) ** 2 + (y[tree_structure.parents()] - y) ** 2)
     mean, variance = hg.attribute_gaussian_region_weights_model(tree_structure, image_calibrated)
     area = hg.attribute_area(tree_structure)
+    parent_area = area[tree_structure.parents()]
 
     gaussian_intensities = helper.compute_gaussian_profile(
         mean, variance, distances, altitudes / area+1
@@ -54,7 +55,7 @@ def main():
     objects = helper.select_objects(tree_structure, significant_nodes)
 
     modified_isophote = helper.move_up(
-        tree_structure, altitudes, area, distances, objects, bg_var, bg_gain,
+        tree_structure, altitudes, area, parent_area, distances, objects, bg_var, bg_gain,
         parent_gamma - gamma, gaussian_intensities, move_factor
     )
 
