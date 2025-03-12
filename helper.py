@@ -374,8 +374,8 @@ def move_up(
                 )
             )
         ),
-        #TODO: check: "altitudes/area<=gaussian"
-        altitudes<=gaussian,
+        #TODO: check: "altitudes/area>=gaussian"
+        altitudes>=gaussian,
     )
 
     parent_closest_object_ancestor = closest_object_ancestor[tree.parents()]
