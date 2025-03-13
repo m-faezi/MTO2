@@ -12,8 +12,8 @@ def main():
     parser.add_argument('file_path', type=str, help='Path to the image file')
     parser.add_argument(
         '--move_factor',
-        type=float,
-        default=0.5,
+        type=np.float64,
+        default=0.1,
         help='move_factor parameter for isophote correction (default = 0.1)'
     )
     parser.add_argument('--par_out', action='store_true', help='Extract and save parameters, if set')

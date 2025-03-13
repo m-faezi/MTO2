@@ -312,7 +312,7 @@ def second_order_moments(tree, size, image):
 def attribute_statistical_significance(tree, altitudes, volume, area, background_var, gain, alpha=1e-6):
 
     denominator = background_var + altitudes[tree.parents()] / gain
-    safe_denominator = np.where(denominator == 0, np.finfo(float).eps, denominator)
+    safe_denominator = np.where(denominator == 0, np.finfo(np.float64).eps, denominator)
     volume /= safe_denominator
 
     significant_nodes = volume > chi2.ppf(alpha, area)
