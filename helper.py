@@ -194,10 +194,9 @@ def gaussian_profile(I_0, sigma, R, mu=0):
 
 def compute_gaussian_profile(mean, variance, distances, intensity, center=0):
 
-    #TODO: check "I_0 = mean - intensity"
     I_0 = mean
     np.nan_to_num(variance, nan=0)
-    sigma = np.sqrt(np.maximum(variance, 0))  # Ensure non-negative variance
+    sigma = np.sqrt(np.maximum(variance, 0))
     gaussian_intensity = gaussian_profile(I_0, sigma, distances, mu=center)
 
     return gaussian_intensity
@@ -374,7 +373,6 @@ def move_up(
                 )
             )
         ),
-        #TODO: check: "altitudes/area>=gaussian"
         altitudes>=gaussian,
     )
 
