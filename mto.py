@@ -41,11 +41,11 @@ def main():
     parent_area = area[tree_structure.parents()]
 
     gaussian_intensities = helper.compute_gaussian_profile(
-        mean[tree_structure.parents()],
-        variance[tree_structure.parents()],
-        distances[tree_structure.parents()],
-        altitudes[tree_structure.parents()]
-    ) / area[tree_structure.parents()]
+        mean,
+        variance,
+        distances,
+        altitudes
+    )
 
     volume = hg.attribute_volume(tree_structure, altitudes)
     parent_altitude = altitudes[tree_structure.parents()]

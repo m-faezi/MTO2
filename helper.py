@@ -194,7 +194,7 @@ def gaussian_profile(I_0, sigma, R, mu=0):
 
 def compute_gaussian_profile(mean, variance, distances, intensity, center=0):
 
-    I_0 = mean
+    I_0 = intensity
     np.nan_to_num(variance, nan=0)
     sigma = np.sqrt(np.maximum(variance, 0))
     gaussian_intensity = gaussian_profile(I_0, sigma, distances, mu=center)
