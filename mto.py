@@ -44,7 +44,7 @@ def main():
         mean,
         variance,
         distances,
-        altitudes
+        altitudes/area
     )
 
     volume = hg.attribute_volume(tree_structure, altitudes)
