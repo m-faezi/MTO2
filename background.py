@@ -207,11 +207,11 @@ def estimate_structural_background(image):
     )
 
     gaussian_intensities = helper.compute_gaussian_profile(
-        mean[tree_structure.parents()],
-        variance[tree_structure.parents()],
-        distances[tree_structure.parents()],
-        altitudes[tree_structure.parents()]
-    ) / area[tree_structure.parents()]
+        mean,
+        variance,
+        distances,
+        altitudes/area
+    )
 
     tree_non_source, n_map_non_source = hg.simplify_tree(
         tree_structure,
