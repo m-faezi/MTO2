@@ -366,11 +366,8 @@ def move_up(
         np.logical_and(
             altitudes >= target_altitudes,
             np.logical_and(
-                np.sqrt(area/np.pi) > distances,
-                np.logical_and(
-                    objects[closest_object_ancestor],
-                    area/parent_area >= .78
-                )
+                objects[closest_object_ancestor],
+                area/parent_area >= .78
             )
         ),
         altitudes>=gaussian,
