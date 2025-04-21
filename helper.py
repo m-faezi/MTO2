@@ -33,7 +33,7 @@ def image_value_check(image):
         min_value = np.nanmin(image)
         image[np.isnan(image)] = min_value
 
-    return np.abs(image)
+    return np.maximum(image, 0)
 
 
 def image_value_check_2(image):
