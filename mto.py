@@ -13,8 +13,8 @@ def main():
     parser.add_argument(
         '--move_factor',
         type=np.float64,
-        default=0.1,
-        help='move_factor parameter for isophote correction (default = 0.1)'
+        default=0,
+        help='move_factor parameter for isophote correction (default = 0)'
     )
     parser.add_argument('--par_out', action='store_true', help='Extract and save parameters, if set')
     parser.add_argument('--reduce', action='store_true', help='Returns background subtracted image')
