@@ -66,7 +66,7 @@ def main():
 
     tree_of_segments, n_map_segments = hg.simplify_tree(tree_structure, np.logical_not(modified_isophote))
 
-    colors = np.random.randint(0, 255, (tree_of_segments.num_vertices(), 3), dtype=np.uint8)
+    colors = np.random.randint(0, 254, (tree_of_segments.num_vertices(), 3), dtype=np.uint8)
     colors[tree_of_segments.root(), :] = 0
     seg = hg.reconstruct_leaf_data(tree_of_segments, colors)
 
@@ -83,7 +83,7 @@ def main():
     output_fits = f"MTO-{tag}-move_factor-{move_factor_str}.fits"
     output_params = f"MTO-{tag}-move_factor-{move_factor_str}.csv"
 
-    segmentation_image.save(output_png, 'PNG', quality=720)
+    segmentation_image.save(output_png, 'PNG', quality=1080)
     helper.save_fits_with_header(seg_with_ids, header, output_fits)
 
     if par_out:
