@@ -16,9 +16,27 @@ def main():
         default=0,
         help='move_factor parameter for isophote correction (default = 0)'
     )
-    parser.add_argument('--par_out', action='store_true', help='Extract and save parameters, if set')
-    parser.add_argument('--deblend', action='store_true', help='Returns deblended segmentation map')
-    parser.add_argument('--reduce', action='store_true', help='Returns background subtracted image')
+    parser.add_argument(
+        '--par_out',
+        action='store_true',
+        help='Extract and save parameters, if set'
+    )
+    parser.add_argument(
+        '--deblend',
+        action='store_true',
+        help='Returns deblended segmentation map'
+    )
+    parser.add_argument(
+        '--reduce',
+        action='store_true',
+        help='Returns background subtracted image'
+    )
+    parser.add_argument(
+        '--file_tag',
+        type=str,
+        default='',
+        help='Optional string to append to saved file names'
+    )
 
     args = parser.parse_args()
     data_path = args.file_path
@@ -26,6 +44,7 @@ def main():
     par_out = args.par_out
     deblend = args.deblend
     reduce = args.reduce
+    file_tag = f"-{args.file_tag}" if args.file_tag else ""
 
     image, header = helper.read_image_data(data_path)
     image = helper.image_value_check(image)
@@ -76,12 +95,11 @@ def main():
     seg_with_ids = hg.reconstruct_leaf_data(tree_of_segments, unique_segment_ids)
 
     move_factor_str = str(move_factor).replace('.', '_')
-
     tag = "deblended" if deblend else ""
 
-    output_png = f"MTO-{tag}-move_factor-{move_factor_str}.png"
-    output_fits = f"MTO-{tag}-move_factor-{move_factor_str}.fits"
-    output_params = f"MTO-{tag}-move_factor-{move_factor_str}.csv"
+    output_png = f"MTO-{tag}-move_factor-{move_factor_str}{file_tag}.png"
+    output_fits = f"MTO-{tag}-move_factor-{move_factor_str}{file_tag}.fits"
+    output_params = f"MTO-{tag}-move_factor-{move_factor_str}{file_tag}.csv"
 
     segmentation_image.save(output_png, 'PNG', quality=1080)
     helper.save_fits_with_header(seg_with_ids, header, output_fits)
@@ -113,11 +131,10 @@ def main():
         )
 
     if reduce:
-        reduced_fits = f"MTO-reduced.fits"
+        reduced_fits = f"MTO-reduced{file_tag}.fits"
         helper.save_fits_with_header(image - bg_mean, header, reduced_fits)
 
 
 if __name__ == "__main__":
-
     main()
 

@@ -37,6 +37,10 @@
 
 	$ python mto.py [input image path] --move_factor <float> --reduce
 
+#### Optional string to append to output file names:
+
+	$ python mto.py [input image path] --move_factor <float> --file_tag <string>
+
 --------------------------
 
 #### Arguments:
@@ -47,3 +51,4 @@
 --par_out	      Extract and save parameters in .csv format
 --deblend	      Return deblended segmentation map
 --reduce	      Return background subtracted image
+--file_tag            Optional string to append to output file names
