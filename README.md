@@ -29,6 +29,9 @@
 
 	$ python mto.py [input image path] --move_factor <float> --par_out
 
+#### To deblend the detection:
+
+	$ python mto.py [input image path] --move_factor <float> --deblend
 
 #### To get background subtracted image:
 
@@ -42,4 +45,5 @@
 -h, --help            Show the help message and exit
 --move_factor         Adjust the spread of objects (default = 0)
 --par_out	      Extract and save parameters in .csv format
+--deblend	      Return deblended segmentation map
 --reduce	      Return background subtracted image

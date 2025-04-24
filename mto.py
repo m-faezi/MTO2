@@ -18,11 +18,13 @@ def main():
     )
     parser.add_argument('--par_out', action='store_true', help='Extract and save parameters, if set')
     parser.add_argument('--reduce', action='store_true', help='Returns background subtracted image')
+    parser.add_argument('--deblend', action='store_false', help='Returns deblended segmentation map')
 
     args = parser.parse_args()
     data_path = args.file_path
     move_factor = args.move_factor
     par_out = args.par_out
+    deblend = args.deblend
     reduce = args.reduce
 
     image, header = helper.read_image_data(data_path)
@@ -59,7 +61,7 @@ def main():
 
     modified_isophote = helper.move_up(
         tree_structure, altitudes, area, parent_area, distances, objects, bg_var, bg_gain,
-        parent_gamma - gamma, gaussian_intensities, move_factor
+        parent_gamma - gamma, gaussian_intensities, move_factor, deblend
     )
 
     tree_of_segments, n_map_segments = hg.simplify_tree(tree_structure, np.logical_not(modified_isophote))

@@ -223,20 +223,20 @@ def sky_coordinates(y, x, header):
 
 def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta, file_name):
 
-    parameters = {
-        "Segment_ID": id,
-        "X":x,
-        "Y": y,
-        "RA": ra,
-        "DEC": dec,
-        "Flux": flux,
-        "Flux_Calibrated": flux_calibrated,
-        "Area": area,
-        "a": a,
-        "b": b,
-        "Theta": theta,
-    }
-    parameters_df = pd.DataFrame(parameters)
+    parameters_df = pd.DataFrame({
+        "Segment_ID": list(range(1, len(x))),
+        "X": x[1:],
+        "Y": y[1:],
+        "RA": ra[1:],
+        "DEC": dec[1:],
+        "Flux": flux[1:],
+        "Flux_Calibrated": flux_calibrated[1:],
+        "Area": area[1:],
+        "a": a[1:],
+        "b": b[1:],
+        "Theta": theta[1:]
+    })
+
     parameters_df.to_csv(file_name, index=False)
 
     return None
@@ -346,7 +346,8 @@ def select_objects(tree, significant_nodes):
 
 
 def move_up(
-    tree, altitudes, area, parent_area, distances, objects, background_var, gain, gamma_distance, gaussian, move_factor
+    tree, altitudes, area, parent_area, distances, objects, background_var, gain, gamma_distance, gaussian,
+    move_factor, deblend
 ):
 
     main_branch = attribute_main_branch(tree)
@@ -362,16 +363,25 @@ def move_up(
     target_altitudes[object_indexes] = altitudes[object_indexes] + move_factor * local_noise
 
     target_altitudes = target_altitudes[closest_object_ancestor]
-    valid_moves = np.logical_and(
-        np.logical_and(
+
+    if not deblend:
+        valid_moves = np.logical_and(
             altitudes >= target_altitudes,
+            objects[closest_object_ancestor],
+
+        )
+
+    elif deblend:
+        valid_moves = np.logical_and(
             np.logical_and(
-                objects[closest_object_ancestor],
-                area/parent_area >= .78
-            )
-        ),
-        altitudes>=gaussian,
-    )
+                altitudes >= target_altitudes,
+                np.logical_and(
+                    objects[closest_object_ancestor],
+                    area/parent_area >= .78
+                )
+            ),
+            altitudes>=gaussian,
+        )
 
     parent_closest_object_ancestor = closest_object_ancestor[tree.parents()]
     parent_not_valid_moves = np.logical_not(valid_moves[tree.parents()])
