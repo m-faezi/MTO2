@@ -224,7 +224,7 @@ def sky_coordinates(y, x, header):
 def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta, file_name):
 
     parameters_df = pd.DataFrame({
-        "Segment_ID": list(range(1, len(x))),
+        "Segment_ID": id[1:],
         "X": x[1:],
         "Y": y[1:],
         "RA": ra[1:],
