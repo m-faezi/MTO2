@@ -41,6 +41,10 @@
 
 	$ python mto.py [input image path] --move_factor <float> --file_tag <string>
 
+#### To specify a directory for output files:
+
+	$ python mto.py [input image path] --move_factor <float> --output_path <directory>
+
 --------------------------
 
 #### Arguments:
@@ -48,7 +52,9 @@
 ```yaml
 -h, --help            Show the help message and exit
 --move_factor         Adjust the spread of objects (default = 0)
---par_out	      Extract and save parameters in .csv format
---deblend	      Return deblended segmentation map
---reduce	      Return background subtracted image
+--par_out             Extract and save parameters in .csv format
+--deblend             Return deblended segmentation map
+--reduce              Return background subtracted image
 --file_tag            Optional string to append to output file names
+--output_path         Directory to save output files (default = current directory)
+

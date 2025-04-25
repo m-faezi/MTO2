@@ -1,3 +1,4 @@
+import os
 import helper
 import argparse
 import background
@@ -37,6 +38,12 @@ def main():
         default='',
         help='Optional string to append to saved file names'
     )
+    parser.add_argument(
+        '--output_path',
+        type=str,
+        default='.',
+        help='Directory to save output files (default: current directory)'
+    )
 
     args = parser.parse_args()
     data_path = args.file_path
@@ -45,6 +52,8 @@ def main():
     deblend = args.deblend
     reduce = args.reduce
     file_tag = f"-{args.file_tag}" if args.file_tag else ""
+    output_path = os.path.abspath(args.output_path)
+    os.makedirs(output_path, exist_ok=True)
 
     image, header = helper.read_image_data(data_path)
     image = helper.image_value_check(image)
@@ -95,11 +104,11 @@ def main():
     seg_with_ids = hg.reconstruct_leaf_data(tree_of_segments, unique_segment_ids)
 
     move_factor_str = str(move_factor).replace('.', 'p')
-    tag = "d" if deblend else ""
+    tag = "-d" if deblend else ""
 
-    output_png = f"{move_factor_str}-{tag}{file_tag}.png"
-    output_fits = f"{move_factor_str}-{tag}{file_tag}.fits"
-    output_params = f"{move_factor_str}-{tag}{file_tag}.csv"
+    output_png = os.path.join(output_path, f"{move_factor_str}{tag}{file_tag}.png")
+    output_fits = os.path.join(output_path, f"{move_factor_str}{tag}{file_tag}.fits")
+    output_params = os.path.join(output_path, f"{move_factor_str}{tag}{file_tag}.csv")
 
     segmentation_image.save(output_png, 'PNG', quality=1080)
     helper.save_fits_with_header(seg_with_ids, header, output_fits)
@@ -131,7 +140,7 @@ def main():
         )
 
     if reduce:
-        reduced_fits = f"reduced{file_tag}.fits"
+        reduced_fits = os.path.join(output_path, f"reduced{file_tag}.fits")
         helper.save_fits_with_header(image - bg_mean, header, reduced_fits)
 
 
