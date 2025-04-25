@@ -94,12 +94,12 @@ def main():
     unique_segment_ids = np.arange(tree_of_segments.num_vertices())[::-1]
     seg_with_ids = hg.reconstruct_leaf_data(tree_of_segments, unique_segment_ids)
 
-    move_factor_str = str(move_factor).replace('.', '_')
-    tag = "deblended" if deblend else ""
+    move_factor_str = str(move_factor).replace('.', 'p')
+    tag = "d" if deblend else ""
 
-    output_png = f"MTO-{tag}-move_factor-{move_factor_str}{file_tag}.png"
-    output_fits = f"MTO-{tag}-move_factor-{move_factor_str}{file_tag}.fits"
-    output_params = f"MTO-{tag}-move_factor-{move_factor_str}{file_tag}.csv"
+    output_png = f"MTO-{tag}-{move_factor_str}{file_tag}.png"
+    output_fits = f"MTO-{tag}-{move_factor_str}{file_tag}.fits"
+    output_params = f"MTO-{tag}-{move_factor_str}{file_tag}.csv"
 
     segmentation_image.save(output_png, 'PNG', quality=1080)
     helper.save_fits_with_header(seg_with_ids, header, output_fits)
