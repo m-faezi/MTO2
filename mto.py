@@ -97,9 +97,9 @@ def main():
     move_factor_str = str(move_factor).replace('.', 'p')
     tag = "d" if deblend else ""
 
-    output_png = f"MTO-{tag}-{move_factor_str}{file_tag}.png"
-    output_fits = f"MTO-{tag}-{move_factor_str}{file_tag}.fits"
-    output_params = f"MTO-{tag}-{move_factor_str}{file_tag}.csv"
+    output_png = f"{move_factor_str}-{tag}{file_tag}.png"
+    output_fits = f"{move_factor_str}-{tag}{file_tag}.fits"
+    output_params = f"{move_factor_str}-{tag}{file_tag}.csv"
 
     segmentation_image.save(output_png, 'PNG', quality=1080)
     helper.save_fits_with_header(seg_with_ids, header, output_fits)
@@ -131,7 +131,7 @@ def main():
         )
 
     if reduce:
-        reduced_fits = f"MTO-reduced{file_tag}.fits"
+        reduced_fits = f"reduced{file_tag}.fits"
         helper.save_fits_with_header(image - bg_mean, header, reduced_fits)
 
 
