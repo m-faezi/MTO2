@@ -198,30 +198,48 @@ def estimate_structural_background(image):
     filtered_features = [feature for feature in features if not np.isnan(feature).any()]
 
     if not filtered_features:
-        raise ValueError("All features contain NaN values. No valid features to process.")
 
-    all_labels = helper.fuzz_bg_structure(
-        filtered_features,
-        non_bool_unique_topological_height,
-        altitudes
-    )
-
-    gaussian_intensities = helper.compute_gaussian_profile(
-        mean,
-        variance,
-        distances,
-        altitudes/area
-    )
-
-    tree_non_source, n_map_non_source = hg.simplify_tree(
-        tree_structure,
-        np.logical_or(
-            all_labels != all_labels[tree_structure.root()],
-            altitudes/area >= gaussian_intensities
+        gaussian_intensities = helper.compute_gaussian_profile(
+            mean,
+            variance,
+            distances,
+            altitudes / area
         )
-    )
 
-    background = hg.reconstruct_leaf_data(tree_non_source, altitudes[n_map_non_source])
+        tree_non_source, n_map_non_source = hg.simplify_tree(
+            tree_structure,
+            np.logical_or(
+                ~non_bool_unique_topological_height,
+                altitudes / area <= gaussian_intensities
+            )
+        )
+
+        background = hg.reconstruct_leaf_data(tree_non_source, altitudes[n_map_non_source])
+
+    else:
+
+        all_labels = helper.fuzz_bg_structure(
+            filtered_features,
+            non_bool_unique_topological_height,
+            altitudes
+        )
+
+        gaussian_intensities = helper.compute_gaussian_profile(
+            mean,
+            variance,
+            distances,
+            altitudes/area
+        )
+
+        tree_non_source, n_map_non_source = hg.simplify_tree(
+            tree_structure,
+            np.logical_or(
+                all_labels != all_labels[tree_structure.root()],
+                altitudes/area <= gaussian_intensities
+            )
+        )
+
+        background = hg.reconstruct_leaf_data(tree_non_source, altitudes[n_map_non_source])
 
     soft_bias = 0.0
     image_minimum = np.nanmin(image)
@@ -231,7 +249,7 @@ def estimate_structural_background(image):
 
     bg_mean = np.nanmean(background, axis=None)
     bg_var = np.nanvar(background, axis=None)
-    gain = (bg_mean - soft_bias) / bg_var
+    gain = (bg_mean - np.abs(soft_bias)) / np.maximum(bg_var, np.finfo(np.float64).eps)
 
     return bg_mean, bg_var, gain
 

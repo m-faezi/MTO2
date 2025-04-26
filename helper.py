@@ -311,7 +311,7 @@ def second_order_moments(tree, size, image):
 
 def attribute_statistical_significance(tree, altitudes, volume, area, background_var, gain, alpha=1e-6):
 
-    denominator = background_var + altitudes[tree.parents()] / gain
+    denominator = background_var + altitudes[tree.parents()] / (gain + np.finfo(np.float64).eps)
     safe_denominator = np.where(denominator == 0, np.finfo(np.float64).eps, denominator)
     volume /= safe_denominator
 
@@ -367,13 +367,14 @@ def move_up(
     target_altitudes = target_altitudes[closest_object_ancestor]
 
     if not deblend:
+
         valid_moves = np.logical_and(
             altitudes >= target_altitudes,
-            objects[closest_object_ancestor],
-
+            objects[closest_object_ancestor]
         )
 
     elif deblend:
+
         valid_moves = np.logical_and(
             np.logical_and(
                 altitudes >= target_altitudes,
