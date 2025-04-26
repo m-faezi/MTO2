@@ -359,7 +359,9 @@ def move_up(
 
     target_altitudes = altitudes.copy()
     object_indexes, = np.nonzero(objects)
-    local_noise = np.sqrt(background_var + altitudes[tree.parent(object_indexes)] / gain)
+    local_noise = np.sqrt(
+        np.maximum(np.where(gain != 0, background_var + altitudes[tree.parent(object_indexes)], 0) / gain, 0)
+    )
     target_altitudes[object_indexes] = altitudes[object_indexes] + move_factor * local_noise
 
     target_altitudes = target_altitudes[closest_object_ancestor]
