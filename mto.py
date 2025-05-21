@@ -8,6 +8,19 @@ from PIL import Image, ImageOps
 
 
 def main():
+    def restricted_float(value):
+
+        try:
+            value = float(value)
+
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"{value} is not a valid float")
+
+        if value < 0 or value > 1.0:
+            raise argparse.ArgumentTypeError(f"{value} not in range [0.0, 1.0]")
+
+        return value
+
 
     parser = argparse.ArgumentParser()
     parser.add_argument('file_path', type=str, help='Path to the image file')
@@ -16,6 +29,12 @@ def main():
         type=np.float64,
         default=0,
         help='move_factor parameter for isophote correction (default = 0)'
+    )
+    parser.add_argument(
+        '--area_ratio',
+        type=restricted_float,
+        default=0.78,
+        help='area_ratio parameter for deblending correction (default = .78)'
     )
     parser.add_argument(
         '--par_out',
@@ -48,6 +67,7 @@ def main():
     args = parser.parse_args()
     data_path = args.file_path
     move_factor = args.move_factor
+    area_ratio = args.area_ratio
     par_out = args.par_out
     deblend = args.deblend
     reduce = args.reduce
@@ -104,11 +124,12 @@ def main():
     seg_with_ids = hg.reconstruct_leaf_data(tree_of_segments, unique_segment_ids)
 
     move_factor_str = str(move_factor).replace('.', 'p')
+    area_ratio_str = str(area_ratio).replace('.', 'p')
     tag = "-d" if deblend else ""
 
-    output_png = os.path.join(output_path, f"{move_factor_str}{tag}{file_tag}.png")
-    output_fits = os.path.join(output_path, f"{move_factor_str}{tag}{file_tag}.fits")
-    output_params = os.path.join(output_path, f"{move_factor_str}{tag}{file_tag}.csv")
+    output_png = os.path.join(output_path, f"mf-{move_factor_str}-ar-{area_ratio_str}{tag}{file_tag}.png")
+    output_fits = os.path.join(output_path, f"mf-{move_factor_str}-ar-{area_ratio_str}{tag}{file_tag}.fits")
+    output_params = os.path.join(output_path, f"mf-{move_factor_str}-ar-{area_ratio_str}{tag}{file_tag}.csv")
 
     segmentation_image.save(output_png, 'PNG', quality=1080)
     helper.save_fits_with_header(seg_with_ids, header, output_fits)
