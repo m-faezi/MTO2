@@ -109,7 +109,7 @@ def main():
 
     modified_isophote = helper.move_up(
         tree_structure, altitudes, area, parent_area, distances, objects, bg_var, bg_gain,
-        parent_gamma - gamma, gaussian_intensities, move_factor, deblend
+        parent_gamma - gamma, gaussian_intensities, move_factor, deblend, area_ratio
     )
 
     tree_of_segments, n_map_segments = hg.simplify_tree(tree_structure, np.logical_not(modified_isophote))
