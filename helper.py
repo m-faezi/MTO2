@@ -369,22 +369,24 @@ def move_up(
     if not deblend:
 
         valid_moves = np.logical_and(
-            altitudes >= target_altitudes,
-            objects[closest_object_ancestor]
-        )
-
-    elif deblend:
-
-        valid_moves = np.logical_and(
-            np.logical_and(
                 altitudes >= target_altitudes,
                 np.logical_and(
                     objects[closest_object_ancestor],
                     area/parent_area >= .78
                 )
-            ),
-            altitudes>=gaussian,
-        )
+            )
+
+    elif deblend:
+
+        valid_moves = np.logical_and(
+            np.logical_and(
+                    altitudes >= target_altitudes,
+                    np.logical_and(
+                        objects[closest_object_ancestor],
+                        area/parent_area >= .78
+                    )
+                ),
+                altitudes>=gaussian)
 
     parent_closest_object_ancestor = closest_object_ancestor[tree.parents()]
     parent_not_valid_moves = np.logical_not(valid_moves[tree.parents()])
