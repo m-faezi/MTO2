@@ -25,6 +25,10 @@
 
 	$ python mto.py [input image path] --move_factor <float>
 
+#### For deblending correction: 
+
+	$ python mto.py [input image path] --area_ratio <float>
+
 #### To extract and save parameters:
 
 	$ python mto.py [input image path] --move_factor <float> --par_out
@@ -47,11 +51,12 @@
 
 --------------------------
 
-#### Arguments:
+#### Command line arguments:
 
 ```yaml
 -h, --help            Show the help message and exit
---move_factor         Adjust the spread of objects (default = 0)
+--move_factor         Adjust the spread of objects. Type: float Default: 0 Range: non-negative
+--area_ratio          Adjust deblending correction. Type: float Default: 0.78 Range: [0.0, 1.0]
 --par_out             Extract and save parameters in .csv format
 --deblend             Return deblended segmentation map
 --reduce              Return background subtracted image
