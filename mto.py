@@ -42,9 +42,9 @@ def main():
         help='Extract and save parameters, if set'
     )
     parser.add_argument(
-        '--deblend',
+        '--G_fit',
         action='store_true',
-        help='Returns deblended segmentation map'
+        help='Applies morphological Gaussian filter'
     )
     parser.add_argument(
         '--reduce',
@@ -69,7 +69,7 @@ def main():
     move_factor = args.move_factor
     area_ratio = args.area_ratio
     par_out = args.par_out
-    deblend = args.deblend
+    G_fit = args.G_fit
     reduce = args.reduce
     file_tag = f"-{args.file_tag}" if args.file_tag else ""
     output_path = os.path.abspath(args.output_path)
@@ -109,7 +109,7 @@ def main():
 
     modified_isophote = helper.move_up(
         tree_structure, altitudes, area, parent_area, distances, objects, bg_var, bg_gain,
-        parent_gamma - gamma, gaussian_intensities, move_factor, deblend, area_ratio
+        parent_gamma - gamma, gaussian_intensities, move_factor, G_fit, area_ratio
     )
 
     tree_of_segments, n_map_segments = hg.simplify_tree(tree_structure, np.logical_not(modified_isophote))
@@ -125,7 +125,7 @@ def main():
 
     move_factor_str = str(move_factor).replace('.', 'p')
     area_ratio_str = str(area_ratio).replace('.', 'p')
-    tag = "-d" if deblend else ""
+    tag = "-G" if G_fit else ""
 
     output_png = os.path.join(output_path, f"mf-{move_factor_str}-ar-{area_ratio_str}{tag}{file_tag}.png")
     output_fits = os.path.join(output_path, f"mf-{move_factor_str}-ar-{area_ratio_str}{tag}{file_tag}.fits")

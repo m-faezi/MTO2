@@ -348,7 +348,7 @@ def select_objects(tree, significant_nodes):
 
 def move_up(
     tree, altitudes, area, parent_area, distances, objects, background_var, gain, gamma_distance, gaussian,
-    move_factor, deblend, area_ratio
+    move_factor, G_fit, area_ratio
 ):
 
     main_branch = attribute_main_branch(tree)
@@ -367,7 +367,7 @@ def move_up(
 
     target_altitudes = target_altitudes[closest_object_ancestor]
 
-    if not deblend:
+    if not G_fit:
 
         valid_moves = np.logical_and(
                 altitudes >= target_altitudes,
@@ -377,7 +377,7 @@ def move_up(
                 )
             )
 
-    elif deblend:
+    elif G_fit:
 
         valid_moves = np.logical_and(
             np.logical_and(

@@ -33,9 +33,9 @@
 
 	$ python mto.py [input image path] --move_factor <float> --par_out
 
-#### To deblend the detection:
+#### To apply a morphological Gaussian filter:
 
-	$ python mto.py [input image path] --move_factor <float> --deblend
+	$ python mto.py [input image path] --move_factor <float> --G_fit
 
 #### To get background subtracted image:
 
@@ -58,7 +58,7 @@
 --move_factor         Adjust the spread of objects. Type: float Default: 0 Range: non-negative
 --area_ratio          Adjust deblending correction. Type: float Default: 0.78 Range: [0.0, 1.0]
 --par_out             Extract and save parameters in .csv format
---deblend             Return deblended segmentation map
+--G_fit               Applies morphological Gaussian filter
 --reduce              Return background subtracted image
 --file_tag            Optional string to append to output file names
 --output_path         Directory to save output files (default = current directory)
