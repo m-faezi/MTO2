@@ -29,10 +29,6 @@
 
 	$ python mto.py [input image path] --area_ratio <float>
 
-#### To disable smoothing filter: 
-
-	$ python mto.py [input image path] --non_smooth
-
 #### To extract and save parameters:
 
 	$ python mto.py [input image path] --move_factor <float> --par_out
@@ -44,6 +40,10 @@
 #### To get background subtracted image:
 
 	$ python mto.py [input image path] --move_factor <float> --reduce
+
+#### To disable smoothing filter: 
+
+	$ python mto.py [input image path] --non_smooth
 
 #### Optional string to append to output file names:
 
@@ -60,10 +60,11 @@
 ```yaml
 -h, --help            Show the help message and exit
 --move_factor         Adjust the spread of objects. Type: float Default: 0 Range: non-negative
---area_ratio          Adjust deblending correction. Type: float Default: 0.78 Range: [0.0, 1.0)
+--area_ratio          Adjust deblending correction. Type: float Default: 0.90 Range: [0.0, 1.0)
 --par_out             Extract and save parameters in .csv format
 --G_fit               Applies morphological Gaussian filter
 --reduce              Return background subtracted image
+--non_smooth          Disables smoothing filter
 --file_tag            Optional string to append to output file names
 --output_path         Directory to save output files (default = current directory)
 

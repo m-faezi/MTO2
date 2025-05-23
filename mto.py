@@ -20,7 +20,7 @@ def main():
     parser.add_argument(
         '--area_ratio',
         type=helper.restricted_area_ratio,
-        default=0.78,
+        default=0.90,
         help='area_ratio parameter for deblending correction (default = .78)'
     )
     parser.add_argument(
