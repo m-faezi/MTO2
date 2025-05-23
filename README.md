@@ -29,6 +29,10 @@
 
 	$ python mto.py [input image path] --area_ratio <float>
 
+#### To disable smoothing filter: 
+
+	$ python mto.py [input image path] --non_smooth
+
 #### To extract and save parameters:
 
 	$ python mto.py [input image path] --move_factor <float> --par_out
