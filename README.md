@@ -59,12 +59,12 @@
 
 ```yaml
 -h, --help            Show the help message and exit
---move_factor         Adjust the spread of objects. Type: float Default: 0 Range: non-negative
+--move_factor         Adjust the spread of objects. Type: float Default: 0.00 Range: non-negative
 --area_ratio          Adjust deblending correction. Type: float Default: 0.90 Range: [0.0, 1.0)
 --par_out             Extract and save parameters in .csv format
 --G_fit               Applies morphological Gaussian filter
 --reduce              Return background subtracted image
 --non_smooth          Disables smoothing filter
 --file_tag            Optional string to append to output file names
---output_path         Directory to save output files (default = current directory)
+--output_path         Directory to save output files. Default: current directory
 
