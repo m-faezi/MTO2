@@ -13,13 +13,13 @@ def main():
     parser.add_argument('file_path', type=str, help='Path to the image file')
     parser.add_argument(
         '--move_factor',
-        type=np.float64,
+        type=helper.restricted_move_factor,
         default=0,
         help='move_factor parameter for isophote correction (default = 0)'
     )
     parser.add_argument(
         '--area_ratio',
-        type=helper.restricted_float,
+        type=helper.restricted_area_ratio,
         default=0.78,
         help='area_ratio parameter for deblending correction (default = .78)'
     )
