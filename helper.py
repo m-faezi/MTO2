@@ -384,24 +384,25 @@ def move_up(
     if not G_fit:
 
         valid_moves = np.logical_and(
-                altitudes >= target_altitudes,
-                np.logical_and(
-                    objects[closest_object_ancestor],
-                    area/parent_area >= area_ratio
-                )
+            altitudes >= target_altitudes,
+            np.logical_and(
+                objects[closest_object_ancestor],
+                area/parent_area >= area_ratio
             )
+        )
 
     elif G_fit:
 
         valid_moves = np.logical_and(
             np.logical_and(
-                    altitudes >= target_altitudes,
-                    np.logical_and(
-                        objects[closest_object_ancestor],
-                        area/parent_area >= area_ratio
-                    )
-                ),
-                altitudes>=gaussian)
+                altitudes >= target_altitudes,
+                np.logical_and(
+                    objects[closest_object_ancestor],
+                    area/parent_area >= area_ratio
+                )
+            ),
+            altitudes>=gaussian
+        )
 
     parent_closest_object_ancestor = closest_object_ancestor[tree.parents()]
     parent_not_valid_moves = np.logical_not(valid_moves[tree.parents()])
