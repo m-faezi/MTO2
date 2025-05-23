@@ -58,6 +58,20 @@ def image_value_check_2(image):
     return image
 
 
+def restricted_float(value):
+
+    try:
+        value = float(value)
+
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{value} is not a valid float")
+
+    if value < 0 or value > 1.0:
+        raise argparse.ArgumentTypeError(f"{value} not in range [0.0, 1.0]")
+
+    return value
+
+
 def smooth_filter(image, sigma=2):
 
     return gaussian_filter(image, sigma)

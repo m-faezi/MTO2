@@ -8,19 +8,6 @@ from PIL import Image, ImageOps
 
 
 def main():
-    def restricted_float(value):
-
-        try:
-            value = float(value)
-
-        except ValueError:
-            raise argparse.ArgumentTypeError(f"{value} is not a valid float")
-
-        if value < 0 or value > 1.0:
-            raise argparse.ArgumentTypeError(f"{value} not in range [0.0, 1.0]")
-
-        return value
-
 
     parser = argparse.ArgumentParser()
     parser.add_argument('file_path', type=str, help='Path to the image file')
@@ -32,7 +19,7 @@ def main():
     )
     parser.add_argument(
         '--area_ratio',
-        type=restricted_float,
+        type=helper.restricted_float,
         default=0.78,
         help='area_ratio parameter for deblending correction (default = .78)'
     )
