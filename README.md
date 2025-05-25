@@ -41,9 +41,9 @@
 
 	$ python mto.py [input image path] --move_factor <float> --reduce
 
-#### To disable smoothing filter: 
+#### To adjust smoothing kernel: 
 
-	$ python mto.py [input image path] --non_smooth
+	$ python mto.py [input image path] --s_sigma <float>
 
 #### Optional string to append to output file names:
 
@@ -64,7 +64,7 @@
 --par_out             Extract and save parameters in .csv format
 --G_fit               Applies morphological Gaussian filter
 --reduce              Return background subtracted image
---non_smooth          Disables smoothing filter
+--s_sigms             Standard deviation for smoothing Gaussian kernel. Type: float Default: 2.00 Range: non-negative
 --file_tag            Optional string to append to output file names
 --output_path         Directory to save output files. Default: current directory
 

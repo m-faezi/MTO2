@@ -13,15 +13,15 @@ def main():
     parser.add_argument('file_path', type=str, help='Path to the image file')
     parser.add_argument(
         '--move_factor',
-        type=helper.restricted_move_factor,
+        type=helper.restricted_non_negative,
         default=0,
         help='move_factor parameter for isophote correction (default = 0)'
     )
     parser.add_argument(
         '--area_ratio',
-        type=helper.restricted_area_ratio,
+        type=helper.restricted_normal,
         default=0.90,
-        help='area_ratio parameter for deblending correction (default = .78)'
+        help='area_ratio parameter for deblending correction (default = .90)'
     )
     parser.add_argument(
         '--par_out',
@@ -29,9 +29,10 @@ def main():
         help='Extract and save parameters, if set'
     )
     parser.add_argument(
-        '--non_smooth',
-        action='store_true',
-        help='Disables smoothing filter'
+        '--s_sigma',
+        type=helper.restricted_non_negative,
+        default=2,
+        help='Standard deviation for smoothing Gaussian kernel'
     )
     parser.add_argument(
         '--G_fit',
@@ -62,7 +63,7 @@ def main():
     area_ratio = args.area_ratio
     par_out = args.par_out
     G_fit = args.G_fit
-    non_smooth = args.non_smooth
+    s_sigma = args.s_sigma
     reduce = args.reduce
     file_tag = f"-{args.file_tag}" if args.file_tag else ""
     output_path = os.path.abspath(args.output_path)
@@ -70,12 +71,7 @@ def main():
 
     image, header = helper.read_image_data(data_path)
     image = helper.image_value_check(image)
-
-    if non_smooth:
-        image_processed = image
-
-    elif not non_smooth:
-        image_processed = helper.smooth_filter(image)
+    image_processed = helper.smooth_filter(image, s_sigma)
 
     bg_mean, bg_var, bg_gain = background.estimate_background(image_processed)
     image_calibrated = image_processed - bg_mean
@@ -123,12 +119,21 @@ def main():
 
     move_factor_str = str(move_factor).replace('.', 'p')
     area_ratio_str = str(area_ratio).replace('.', 'p')
+    s_sigma_str = str(s_sigma).replace('.', 'p')
     tag = "-G" if G_fit else ""
-    tag_2 = "-raw" if non_smooth else ""
 
-    output_png = os.path.join(output_path, f"mf-{move_factor_str}-ar-{area_ratio_str}{tag}{tag_2}{file_tag}.png")
-    output_fits = os.path.join(output_path, f"mf-{move_factor_str}-ar-{area_ratio_str}{tag}{tag_2}{file_tag}.fits")
-    output_params = os.path.join(output_path, f"mf-{move_factor_str}-ar-{area_ratio_str}{tag}{tag_2}{file_tag}.csv")
+    output_png = os.path.join(
+        output_path,
+        f"mf-{move_factor_str}-ar-{area_ratio_str}-ss-{s_sigma_str}{tag}{file_tag}.png"
+    )
+    output_fits = os.path.join(
+        output_path,
+        f"mf-{move_factor_str}-ar-{area_ratio_str}-ss-{s_sigma_str}{tag}{file_tag}.fits"
+    )
+    output_params = os.path.join(
+        output_path,
+        f"mf-{move_factor_str}-ar-{area_ratio_str}-ss-{s_sigma_str}{tag}{file_tag}.csv"
+    )
 
     segmentation_image.save(output_png, 'PNG', quality=1080)
     helper.save_fits_with_header(seg_with_ids, header, output_fits)

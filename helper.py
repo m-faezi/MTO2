@@ -58,7 +58,7 @@ def image_value_check_2(image):
     return image
 
 
-def restricted_move_factor(value):
+def restricted_non_negative(value):
 
     try:
         value = float(value)
@@ -72,7 +72,7 @@ def restricted_move_factor(value):
     return value
 
 
-def restricted_area_ratio(value):
+def restricted_normal(value):
 
     try:
         value = float(value)
@@ -86,7 +86,7 @@ def restricted_area_ratio(value):
     return value
 
 
-def smooth_filter(image, sigma=2):
+def smooth_filter(image, sigma):
 
     return gaussian_filter(image, sigma)
 
