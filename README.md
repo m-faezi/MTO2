@@ -60,7 +60,7 @@
 ```yaml
 -h, --help            Show the help message and exit
 --move_factor         Adjust the spread of objects. Type: float Default: 0.00 Range: non-negative
---area_ratio          Adjust deblending correction. Type: float Default: 0.90 Range: [0.0, 1.0)
+--area_ratio          Adjust deblending. Type: float Default: 0.90 Range: [0.0, 1.0)
 --par_out             Extract and save parameters in .csv format
 --G_fit               Applies morphological Gaussian filter
 --reduce              Return background subtracted image
