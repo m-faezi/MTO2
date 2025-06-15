@@ -1,70 +1,44 @@
-# MTO
-## a tool for detecting sources in astronomical images
+# MTO - Astronomical Source Detection Tool
 
---------------------------
+##  Quick Start
 
-#### Build instructions:
+```bash
+python3 -m venv ./venvs/mto
+source ./venvs/mto/bin/activate
+pip install -r requirements.txt
+```
+### Run basic detection
+```bash
+python mto.py image.fits
+```
 
-    $ python3 -m venv ./venvs/mto
+### Show help
+```bash
+python mto.py -h
+```
 
-    $ source ./venvs/mto/bin/activate
+### Full processing
+```bash
+python mto.py H_Jy_crop.fits
+    --s_sigma 1.6 
+    --move_factor 0.1 
+    --area_ratio 0.91  
+    --G_fit 
+    --reduce 
+    --par_out 
+    --output_path "./results" 
+    --file_tag "science_run"
+```
+### Command line arguments
 
-    $ pip install -r requirements.txt
-
---------------------------
-
-#### To get help: 
-
-	$ python mto.py -h
-
-#### To run with default parameter: 
-
-	$ python mto.py [input image path]
-
-#### To include more faint outskirts of objects, a lower move_factor value is recommended: 
-
-	$ python mto.py [input image path] --move_factor <float>
-
-#### For deblending correction: 
-
-	$ python mto.py [input image path] --area_ratio <float>
-
-#### To extract and save parameters:
-
-	$ python mto.py [input image path] --move_factor <float> --par_out
-
-#### To apply a morphological Gaussian filter:
-
-	$ python mto.py [input image path] --move_factor <float> --G_fit
-
-#### To get background subtracted image:
-
-	$ python mto.py [input image path] --move_factor <float> --reduce
-
-#### To adjust smoothing kernel: 
-
-	$ python mto.py [input image path] --s_sigma <float>
-
-#### Optional string to append to output file names:
-
-	$ python mto.py [input image path] --move_factor <float> --file_tag <string>
-
-#### To specify a directory for output files:
-
-	$ python mto.py [input image path] --move_factor <float> --output_path <directory>
-
---------------------------
-
-#### Command line arguments:
-
-```yaml
--h, --help            Show the help message and exit
---move_factor         Adjust the spread of objects. Type: float Default: 0.00 Range: non-negative
---area_ratio          Adjust deblending. Type: float Default: 0.90 Range: [0.0, 1.0)
---par_out             Extract and save parameters in .csv format
---G_fit               Applies morphological Gaussian filter
---reduce              Return background subtracted image
---s_sigms             Standard deviation for smoothing Gaussian kernel. Type: float Default: 2.00 Range: non-negative
---file_tag            Optional string to append to output file names
---output_path         Directory to save output files. Default: current directory
-
+| Option            | Description                                   | Type     | Default | Range/Values        |
+|-------------------|-----------------------------------------------|----------|---------|---------------------|
+| `-h`, `--help`    | Show the help message and exit                | flag     | -       | -                   |
+| `--move_factor`   | Adjust the spread of objects                  | float    | 0.00    | ≥0 (non-negative)   |
+| `--area_ratio`    | Adjust deblending sensitivity                 | float    | 0.90    | [0.0, 1.0)          |
+| `--par_out`       | Extract and save parameters in .csv format    | flag     | -       | -                   |
+| `--G_fit`         | Apply morphological Gaussian filter           | flag     | -       | -                   |
+| `--reduce`        | Return background-subtracted image            | flag     | -       | -                   |
+| `--s_sigma`       | Standard deviation for smoothing kernel       | float    | 2.00    | ≥0 (non-negative)   |
+| `--file_tag`      | Optional string to append to output filenames | string   | ""      | Any text            |
+| `--output_path`   | Directory to save output files                | string   | "."     | Valid path          |
