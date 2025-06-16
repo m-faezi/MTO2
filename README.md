@@ -19,7 +19,7 @@ python mto.py -h
 
 ### Full processing
 ```bash
-python mto.py H_Jy_crop.fits
+python mto.py image.fits
     --s_sigma 1.6 
     --move_factor 0.1 
     --area_ratio 0.91  
