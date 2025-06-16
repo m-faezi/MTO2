@@ -31,14 +31,14 @@ python mto.py image.fits
 ```
 ### Command line arguments
 
-| Option            | Description                                   | Type     | Default | Range/Values        |
-|-------------------|-----------------------------------------------|----------|---------|---------------------|
-| `-h`, `--help`    | Show the help message and exit                | flag     | -       | -                   |
-| `--move_factor`   | Adjust the spread of objects                  | float    | 0.00    | ≥0 (non-negative)   |
-| `--area_ratio`    | Adjust deblending sensitivity                 | float    | 0.90    | [0.0, 1.0)          |
-| `--par_out`       | Extract and save parameters in .csv format    | flag     | -       | -                   |
-| `--G_fit`         | Apply morphological Gaussian filter           | flag     | -       | -                   |
-| `--reduce`        | Return background-subtracted image            | flag     | -       | -                   |
-| `--s_sigma`       | Standard deviation for smoothing kernel       | float    | 2.00    | ≥0 (non-negative)   |
-| `--file_tag`      | Optional string to append to output filenames | string   | ""      | Any text            |
-| `--output_path`   | Directory to save output files                | string   | "."     | Valid path          |
+| Option            | Description                                   | Type     | Default | Range/Values |
+|-------------------|-----------------------------------------------|----------|---------|--------------|
+| `-h`, `--help`    | Show the help message and exit                | flag     | -       | -            |
+| `--move_factor`   | Adjust the spread of objects                  | float    | 0.00    | ≥ 0          |
+| `--area_ratio`    | Adjust deblending sensitivity                 | float    | 0.90    | [0.0, 1.0)   |
+| `--par_out`       | Extract and save parameters in .csv format    | flag     | -       | -            |
+| `--G_fit`         | Apply morphological Gaussian filter           | flag     | -       | -            |
+| `--reduce`        | Return background-subtracted image            | flag     | -       | -            |
+| `--s_sigma`       | Standard deviation for smoothing kernel       | float    | 2.00    | ≥ 0          |
+| `--file_tag`      | Optional string to append to output filenames | string   | ""      | Any text     |
+| `--output_path`   | Directory to save output files                | string   | "."     | Valid path   |
