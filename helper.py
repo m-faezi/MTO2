@@ -195,6 +195,33 @@ def half_light_radius(image, coords):
     return sorted_radii[hlr_index] if hlr_index < len(sorted_radii) else sorted_radii[-1]
 
 
+def compute_r_fwhm(image, coords):
+    """Compute FWHM radius (fast, no subsampling)."""
+    if not coords:
+        return 0.0
+
+    # Vectorized intensity lookup and peak detection
+    y, x = np.array(coords).T
+    intensities = image[y, x]
+    peak = np.max(intensities)
+    if peak == 0:
+        return 0.0
+
+    # Flux-weighted centroid (1 pass)
+    flux = np.sum(intensities)
+    yc = np.sum(y * intensities) / flux
+    xc = np.sum(x * intensities) / flux
+
+    # Mask pixels >= half-max and compute mean distance
+    mask = intensities >= peak * 0.5
+    if not np.any(mask):
+        return 0.0
+
+    r_fwhm = np.mean(np.sqrt((y[mask] - yc)**2 + (x[mask] - xc)**2))
+
+    return r_fwhm
+
+
 def binary_cluster_bg_structure(bg_candidate_features, non_bool_unique_topological_height, altitudes):
 
     masked_features = np.vstack(bg_candidate_features).T
@@ -274,22 +301,25 @@ def sky_coordinates(y, x, header):
     return ra, dec
 
 
-def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta, r_eff, file_name):
+def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta, r_eff, r_fwhm,  file_name):
 
-    parameters_df = pd.DataFrame({
-        "Segment_ID": id[1:],
-        "X": x[1:],
-        "Y": y[1:],
-        "RA": ra[1:],
-        "DEC": dec[1:],
-        "Flux": flux[1:],
-        "Flux_Calibrated": flux_calibrated[1:],
-        "Area": area[1:],
-        "a": a[1:],
-        "b": b[1:],
-        "Theta": theta[1:],
-        "R_eff": r_eff[1:],
-    })
+    parameters_df = pd.DataFrame(
+        {
+            "Segment_ID": id[1:],
+            "X": x[1:],
+            "Y": y[1:],
+            "RA": ra[1:],
+            "DEC": dec[1:],
+            "Flux": flux[1:],
+            "Flux_Calibrated": flux_calibrated[1:],
+            "Area": area[1:],
+            "a": a[1:],
+            "b": b[1:],
+            "Theta": theta[1:],
+            "R_eff": r_eff[1:],
+            "R_fwhm": r_fwhm[1:],
+        }
+    )
 
     parameters_df.to_csv(file_name, index=False)
 

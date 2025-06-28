@@ -156,7 +156,8 @@ def main():
                 if label >= 0:
                     coords_per_segment[label].append((y_, x_))
 
-        hlr_values = [helper.half_light_radius(image, coords) for coords in coords_per_segment]
+        r_eff = [helper.half_light_radius(image, coords) for coords in coords_per_segment]
+        r_fwhm = [helper.compute_r_fwhm(image, coords) for coords in coords_per_segment]
 
         x = x[n_map_segments][tree_of_segments.num_leaves():]
         y = y[n_map_segments][tree_of_segments.num_leaves():]
@@ -178,7 +179,8 @@ def main():
             a[tree_of_segments.num_leaves():][::-1],
             b[tree_of_segments.num_leaves():][::-1],
             theta[tree_of_segments.num_leaves():][::-1],
-            hlr_values[::-1],
+            r_eff[::-1],
+            r_fwhm[::-1],
             file_name=output_params
         )
 
