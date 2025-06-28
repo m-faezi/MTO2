@@ -169,6 +169,8 @@ def fuzz_bg_structure(bg_candidate_features, non_bool_unique_topological_height,
     all_labels[~non_bool_unique_topological_height] = labels_array
 
     return all_labels
+
+
 def half_light_radius(image, coords):
     """
     Compute the half-light radius for a given set of pixel coordinates and image.
@@ -200,6 +202,28 @@ def half_light_radius(image, coords):
     # Half-light radius = radius at which cumulative flux reaches 50% of total
     hlr_index = np.searchsorted(cum_flux, total_flux / 2.0)
     return sorted_radii[hlr_index] if hlr_index < len(sorted_radii) else sorted_radii[-1]
+
+
+def fwhm_radius(image, coords):
+    """
+    Compute the FWHM-equivalent radius based on the number of pixels
+    with intensity ≥ half the maximum pixel value.
+    """
+    if len(coords) == 0:
+        return 0
+
+    intensities = np.array([image[y, x] for y, x in coords])
+    max_val = np.max(intensities)
+    threshold = 0.5 * max_val
+
+    # Count how many pixels are above the half-max threshold
+    above_half_max = intensities >= threshold
+    area = np.sum(above_half_max)
+
+    # Convert area to radius assuming circular symmetry
+    r_fwhm = np.sqrt(area / np.pi)
+
+    return r_fwhm
 
 
 def binary_cluster_bg_structure(bg_candidate_features, non_bool_unique_topological_height, altitudes):

@@ -150,6 +150,7 @@ def main():
 
     # Compute half-light radii
     hlr_values = [helper.half_light_radius(image, coords) for coords in coords_per_segment]
+    fwhm_values = [helper.fwhm_radius(image, coords) for coords in coords_per_segment]
 
 
     if par_out:
