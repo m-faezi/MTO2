@@ -150,7 +150,6 @@ def main():
 
     # Compute half-light radii
     hlr_values = [helper.half_light_radius(image, coords) for coords in coords_per_segment]
-    fwhm_values = [helper.fwhm_radius(image, coords) for coords in coords_per_segment]
 
 
     if par_out:
@@ -176,6 +175,7 @@ def main():
             a[tree_of_segments.num_leaves():][::-1],
             b[tree_of_segments.num_leaves():][::-1],
             theta[tree_of_segments.num_leaves():][::-1],
+            hlr_values[::-1],
             file_name=output_params
         )
 

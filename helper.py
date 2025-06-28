@@ -204,28 +204,6 @@ def half_light_radius(image, coords):
     return sorted_radii[hlr_index] if hlr_index < len(sorted_radii) else sorted_radii[-1]
 
 
-def fwhm_radius(image, coords):
-    """
-    Compute the FWHM-equivalent radius based on the number of pixels
-    with intensity ≥ half the maximum pixel value.
-    """
-    if len(coords) == 0:
-        return 0
-
-    intensities = np.array([image[y, x] for y, x in coords])
-    max_val = np.max(intensities)
-    threshold = 0.5 * max_val
-
-    # Count how many pixels are above the half-max threshold
-    above_half_max = intensities >= threshold
-    area = np.sum(above_half_max)
-
-    # Convert area to radius assuming circular symmetry
-    r_fwhm = np.sqrt(area / np.pi)
-
-    return r_fwhm
-
-
 def binary_cluster_bg_structure(bg_candidate_features, non_bool_unique_topological_height, altitudes):
 
     masked_features = np.vstack(bg_candidate_features).T
@@ -305,7 +283,7 @@ def sky_coordinates(y, x, header):
     return ra, dec
 
 
-def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta, file_name):
+def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta, r_eff, file_name):
 
     parameters_df = pd.DataFrame({
         "Segment_ID": id[1:],
@@ -318,7 +296,8 @@ def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta,
         "Area": area[1:],
         "a": a[1:],
         "b": b[1:],
-        "Theta": theta[1:]
+        "Theta": theta[1:],
+        "R_eff": r_eff[1:],
     })
 
     parameters_df.to_csv(file_name, index=False)
