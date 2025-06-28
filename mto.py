@@ -145,7 +145,7 @@ def main():
 
         segment_ids = np.arange(tree_of_segments.num_leaves(), tree_of_segments.num_vertices())
         label_data = np.full(tree_of_segments.num_vertices(), -1, dtype=np.int32)
-        label_data[segment_ids] = np.arange(len(segment_ids))  # label 0 to N-1
+        label_data[segment_ids] = np.arange(len(segment_ids))
         seg_array = hg.reconstruct_leaf_data(tree_of_segments, label_data)
 
         coords_per_segment = [[] for _ in range(len(segment_ids))]
