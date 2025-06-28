@@ -171,6 +171,30 @@ def fuzz_bg_structure(bg_candidate_features, non_bool_unique_topological_height,
     return all_labels
 
 
+def half_light_radius(image, coords):
+
+    if len(coords) == 0:
+        return 0
+
+    intensities = np.array([image[y, x] for y, x in coords])
+    total_flux_ = np.sum(intensities)
+
+    if total_flux_ == 0:
+        return 0
+
+    y0, x0 = np.mean(coords, axis=0)
+    radii = np.sqrt((np.array(coords)[:, 0] - y0)**2 + (np.array(coords)[:, 1] - x0)**2)
+
+    sorted_indices = np.argsort(radii)
+    sorted_radii = radii[sorted_indices]
+    sorted_flux = intensities[sorted_indices]
+
+    cumulative_flux = np.cumsum(sorted_flux)
+
+    hlr_index = np.searchsorted(cumulative_flux, total_flux_ / 2.0)
+    return sorted_radii[hlr_index] if hlr_index < len(sorted_radii) else sorted_radii[-1]
+
+
 def binary_cluster_bg_structure(bg_candidate_features, non_bool_unique_topological_height, altitudes):
 
     masked_features = np.vstack(bg_candidate_features).T
@@ -250,7 +274,7 @@ def sky_coordinates(y, x, header):
     return ra, dec
 
 
-def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta, file_name):
+def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta, r_eff, file_name):
 
     parameters_df = pd.DataFrame({
         "Segment_ID": id[1:],
@@ -263,7 +287,8 @@ def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta,
         "Area": area[1:],
         "a": a[1:],
         "b": b[1:],
-        "Theta": theta[1:]
+        "Theta": theta[1:],
+        "R_eff": r_eff[1:],
     })
 
     parameters_df.to_csv(file_name, index=False)
