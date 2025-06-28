@@ -138,28 +138,26 @@ def main():
     segmentation_image.save(output_png, 'PNG', quality=1080)
     helper.save_fits_with_header(seg_with_ids, header, output_fits)
 
-    # Assign sequential labels to segment IDs and remember reverse mapping
-    segment_ids = np.arange(tree_of_segments.num_leaves(), tree_of_segments.num_vertices())
-    label_data = np.full(tree_of_segments.num_vertices(), -1, dtype=np.int32)
-    label_data[segment_ids] = np.arange(len(segment_ids))  # label 0 to N-1
-    seg_array = hg.reconstruct_leaf_data(tree_of_segments, label_data)
 
-    # Build coordinates by label, in order
-    coords_per_segment = [[] for _ in range(len(segment_ids))]
-
-    for y_ in range(seg_array.shape[0]):
-        for x_ in range(seg_array.shape[1]):
-            label = seg_array[y_, x_]
-            if label >= 0:
-                coords_per_segment[label].append((y_, x_))
-
-    # Compute radii
-    hlr_values = [helper.half_light_radius(image, coords) for coords in coords_per_segment]
-
-    par_out = True
     if par_out:
 
         print("Extracting parameters...")
+
+        segment_ids = np.arange(tree_of_segments.num_leaves(), tree_of_segments.num_vertices())
+        label_data = np.full(tree_of_segments.num_vertices(), -1, dtype=np.int32)
+        label_data[segment_ids] = np.arange(len(segment_ids))  # label 0 to N-1
+        seg_array = hg.reconstruct_leaf_data(tree_of_segments, label_data)
+
+        coords_per_segment = [[] for _ in range(len(segment_ids))]
+
+        for y_ in range(seg_array.shape[0]):
+            for x_ in range(seg_array.shape[1]):
+                label = seg_array[y_, x_]
+                if label >= 0:
+                    coords_per_segment[label].append((y_, x_))
+
+        hlr_values = [helper.half_light_radius(image, coords) for coords in coords_per_segment]
+
         x = x[n_map_segments][tree_of_segments.num_leaves():]
         y = y[n_map_segments][tree_of_segments.num_leaves():]
         ra, dec = helper.sky_coordinates(y, x, header)
