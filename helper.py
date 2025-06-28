@@ -169,6 +169,37 @@ def fuzz_bg_structure(bg_candidate_features, non_bool_unique_topological_height,
     all_labels[~non_bool_unique_topological_height] = labels_array
 
     return all_labels
+def half_light_radius(image, coords):
+    """
+    Compute the half-light radius for a given set of pixel coordinates and image.
+    """
+    if len(coords) == 0:
+        return 0
+
+    # Get intensities
+    intensities = np.array([image[y, x] for y, x in coords])
+    total_flux = np.sum(intensities)
+
+    if total_flux == 0:
+        return 0
+
+    # Compute centroid
+    y0, x0 = np.mean(coords, axis=0)
+
+    # Compute distances from centroid
+    radii = np.sqrt((np.array(coords)[:, 0] - y0)**2 + (np.array(coords)[:, 1] - x0)**2)
+
+    # Sort pixels by radius
+    sorted_indices = np.argsort(radii)
+    sorted_radii = radii[sorted_indices]
+    sorted_flux = intensities[sorted_indices]
+
+    # Cumulative flux
+    cum_flux = np.cumsum(sorted_flux)
+
+    # Half-light radius = radius at which cumulative flux reaches 50% of total
+    hlr_index = np.searchsorted(cum_flux, total_flux / 2.0)
+    return sorted_radii[hlr_index] if hlr_index < len(sorted_radii) else sorted_radii[-1]
 
 
 def binary_cluster_bg_structure(bg_candidate_features, non_bool_unique_topological_height, altitudes):

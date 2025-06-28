@@ -138,6 +138,20 @@ def main():
     segmentation_image.save(output_png, 'PNG', quality=1080)
     helper.save_fits_with_header(seg_with_ids, header, output_fits)
 
+    # Get segment IDs and segment map
+    seg_array = hg.reconstruct_leaf_data(tree_of_segments, np.arange(tree_of_segments.num_vertices()))
+    segmented_ids = np.arange(tree_of_segments.num_leaves(), tree_of_segments.num_vertices())[::-1]
+
+    # Get coordinates for each segment
+    coords_per_segment = []
+    for segment_id in segmented_ids:
+        ys, xs = np.where(seg_array == segment_id)
+        coords_per_segment.append(list(zip(ys, xs)))
+
+    # Compute half-light radii
+    hlr_values = [helper.half_light_radius(image, coords) for coords in coords_per_segment]
+
+
     if par_out:
 
         print("Extracting parameters...")
