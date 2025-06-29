@@ -159,8 +159,12 @@ def main():
         r_eff = [helper.half_light_radius(image, coords) for coords in coords_per_segment]
         r_fwhm = [helper.compute_r_fwhm(image, coords) for coords in coords_per_segment]
 
-        x = x[n_map_segments][tree_of_segments.num_leaves():]
-        y = y[n_map_segments][tree_of_segments.num_leaves():]
+        # x = x[n_map_segments][tree_of_segments.num_leaves():]
+        # y = y[n_map_segments][tree_of_segments.num_leaves():]
+        centroids = [helper.weighted_centroid_coords_from_segments(image, coords) for coords in coords_per_segment]
+
+        y = [cen[0] for cen in centroids]
+        x = [cen[1] for cen in centroids]
         ra, dec = helper.sky_coordinates(y, x, header)
 
         a, b, theta = helper.second_order_moments(tree_of_segments, image.shape[:2], image)

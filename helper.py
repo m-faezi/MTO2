@@ -142,6 +142,62 @@ def weighted_centroid(tree, size, image):
     return x_mean, y_mean
 
 
+def weighted_centroid_2(tree, size, image):
+
+    """Calculate flux-weighted centroids with proper normalization"""
+    # Ensure positive weights
+    weights = np.maximum(image - np.min(image), 0) + 1e-10  # Small epsilon to avoid division by zero
+    emb = hg.EmbeddingGrid2d(size)
+    coord = emb.lin2grid(np.arange(tree.num_leaves()))
+
+    # Calculate weighted sums
+    m = np.zeros((tree.num_leaves(), 3))
+    m[:, 0] = weights.ravel()  # Flux weights
+    m[:, 1] = coord[:, 0] * weights.ravel()  # X-weighted
+    m[:, 2] = coord[:, 1] * weights.ravel()  # Y-weighted
+
+    # Accumulate through tree
+    m = hg.accumulate_sequential(tree, m, hg.Accumulators.sum)
+
+    # Calculate centroids
+    x_mean = np.divide(m[:, 1], m[:, 0], out=np.zeros_like(m[:, 1]), where=m[:, 0] != 0)
+    y_mean = np.divide(m[:, 2], m[:, 0], out=np.zeros_like(m[:, 2]), where=m[:, 0] != 0)
+
+    return x_mean, y_mean
+
+
+def weighted_centroid_coords_from_segments(image, coords):
+    """
+    Compute the flux-weighted centroid for a set of coordinates.
+
+    Args:
+        image: 2D numpy array of pixel values
+        coords: List of (y, x) coordinate tuples
+
+    Returns:
+        (y_centroid, x_centroid): Flux-weighted center coordinates
+    """
+    if not coords:
+        return (0.0, 0.0)
+
+    coords_array = np.array(coords)
+    y = coords_array[:, 0]
+    x = coords_array[:, 1]
+
+
+    intensities = image[y, x]
+    total_flux = np.sum(intensities)
+
+    if total_flux == 0:
+
+        return (np.mean(y), np.mean(x))
+
+    y_centroid = np.sum(y * intensities) / total_flux
+    x_centroid = np.sum(x * intensities) / total_flux
+
+    return (y_centroid, x_centroid)
+
+
 def get_max_tree_attributes(tree_structure, altitudes, image):
 
     area = hg.attribute_area(tree_structure)
