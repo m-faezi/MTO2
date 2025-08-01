@@ -218,7 +218,7 @@ def estimate_structural_background(image):
 
     else:
 
-        all_labels = helper.fuzz_bg_structure(
+        all_labels = helper.binary_cluster_bg_structure_minibatch(
             filtered_features,
             non_bool_unique_topological_height,
             altitudes
