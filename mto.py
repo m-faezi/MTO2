@@ -72,16 +72,16 @@ def main():
     image, header = helper.read_image_data(data_path)
     image = helper.image_value_check(image)
 
-    bg_mean, bg_var, bg_gain = background.estimate_background(image)
-    image_calibrated = image - bg_mean
+    image_processed = helper.smooth_filter(image, s_sigma)
 
-    image_processed = helper.smooth_filter(image_calibrated, s_sigma)
+    bg_mean, bg_var, bg_gain = background.estimate_background(image_processed)
+    image_calibrated = image_processed - bg_mean
 
-    graph_structure, tree_structure, altitudes = helper.image_to_hierarchical_structure(image_processed)
+    graph_structure, tree_structure, altitudes = helper.image_to_hierarchical_structure(image_calibrated)
 
     x, y = helper.centroid(tree_structure, image.shape[:2])
     distances = np.sqrt((x[tree_structure.parents()] - x) ** 2 + (y[tree_structure.parents()] - y) ** 2)
-    mean, variance = hg.attribute_gaussian_region_weights_model(tree_structure, image_processed)
+    mean, variance = hg.attribute_gaussian_region_weights_model(tree_structure, image_calibrated)
     area = hg.attribute_area(tree_structure)
     parent_area = area[tree_structure.parents()]
 
