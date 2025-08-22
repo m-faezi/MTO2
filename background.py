@@ -210,7 +210,7 @@ def estimate_structural_background(image):
             tree_structure,
             np.logical_or(
                 ~non_bool_unique_topological_height,
-                altitudes / area <= gaussian_intensities
+                altitudes / area >= gaussian_intensities
             )
         )
 
@@ -235,7 +235,7 @@ def estimate_structural_background(image):
             tree_structure,
             np.logical_or(
                 all_labels == all_labels[tree_structure.root()],
-                altitudes/area <= gaussian_intensities
+                altitudes / area >= gaussian_intensities
             )
         )
 
