@@ -7,17 +7,17 @@ python3 -m venv ./venvs/mto
 source ./venvs/mto/bin/activate
 pip install -r requirements.txt
 ```
-### Run basic detection
+### Minimal run
 ```bash
 python mto.py image.fits
 ```
 
-### Show help
+### Get help
 ```bash
 python mto.py -h
 ```
 
-### Full processing
+### Tuned run
 ```bash
 python mto.py image.fits
     --s_sigma 1.6 
