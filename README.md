@@ -1,4 +1,4 @@
-# MTO - Astronomical Source Detection Tool
+# MTO2 - Astronomical Source Detection Tool
 
 ##  Quick Start
 
