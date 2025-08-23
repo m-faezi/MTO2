@@ -27,7 +27,7 @@ python mto.py image.fits
     --reduce 
     --par_out 
     --output_path "./results" 
-    --file_tag "science_run"
+    --file_tag "tuned_run"
 ```
 ### Command line arguments
 
