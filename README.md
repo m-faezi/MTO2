@@ -37,7 +37,7 @@ python mto.py image.fits
 | `--move_factor`   | Adjust the spread of objects                  | float    | 0.00    | ≥ 0          |
 | `--area_ratio`    | Adjust deblending sensitivity                 | float    | 0.90    | [0.0, 1.0)   |
 | `--par_out`       | Extract and save parameters in .csv format    | flag     | -       | -            |
-| `--G_fit`         | Apply morphological Gaussian filter           | flag     | -       | -            |
+| `--G_fit`         | Apply Gaussian-fit attribute filter           | flag     | -       | -            |
 | `--reduce`        | Return background-subtracted image            | flag     | -       | -            |
 | `--s_sigma`       | Standard deviation for smoothing kernel       | float    | 2.00    | ≥ 0          |
 | `--file_tag`      | Optional string to append to output filenames | string   | ""      | Any text     |
