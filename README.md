@@ -2,24 +2,26 @@
 
 ##  Quick Start
 
+> [!TIP]
+> Before installing MTO2, it may be useful to create a python virtual environment (e.g. using [venv](https://docs.python.org/3/library/venv.html)) to avoid dependency version conflicts.
 ```bash
-python3 -m venv ./venvs/mto
-source ./venvs/mto/bin/activate
+python3 -m venv ./venvs/mto2
+source ./venvs/mto2/bin/activate
 pip install -r requirements.txt
 ```
 ### Minimal run
 ```bash
-python mto.py image.fits
+python mto2.py image.fits
 ```
 
 ### Get help
 ```bash
-python mto.py -h
+python mto2.py -h
 ```
 
 ### Tuned run
 ```bash
-python mto.py image.fits
+python mto2.py image.fits
     --s_sigma 1.6 
     --move_factor 0.1 
     --area_ratio 0.91  
