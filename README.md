@@ -56,7 +56,7 @@ python mto2.py image.fits
 
 ## Acknowledgments
 
-This software was developed for a Ph.D. thesis (Mohammad H. Faezi, [2025](#4)) at the Rijksuniversiteit of Groningen under the supervision of Prof. Dr. Reynier Peletier and Dr. Michael Wilkinson.
+This software was developed for a Ph.D. thesis (Mohammad H. Faezi, [2025](#4)) at the Rijksuniversiteit of Groningen under the supervision of Dr. Michael Wilkinson and Prof. Dr. Reynier Peletier.
 
 MTO2 is developed using the [Higra](https://github.com/higra/Higra) Python package, and builds on their example implementation of MTO: [Astronomical object detection with the Max-Tree - MMTA 2016](https://higra.readthedocs.io/en/stable/notebooks.html#illustrative-applications-from-scientific-papers).
 
