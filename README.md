@@ -7,6 +7,11 @@
 
 > [!TIP]
 > Before installing MTO2, it may be useful to create a python virtual environment (e.g. using [venv](https://docs.python.org/3/library/venv.html)) to avoid dependency version conflicts.
+
+### Dependencies
+
+The dependencies are listed in the [requirements.txt](requirements.txt) file.
+
 ```bash
 python3 -m venv ./venvs/mto2
 source ./venvs/mto2/bin/activate
