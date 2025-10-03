@@ -51,8 +51,8 @@ python mto2.py image.fits
 | `--output_path`   | Directory to save output files                | string   | "."     | valid path   |
 | `--file_tag`      | Optional string to append to output filenames | string   | ""      | any text     |
 | `--par_out`       | Extract and save parameters in .csv format    | flag     | -       | -            |
-| `--G_fit`         | Apply Gaussian-fit attribute filter           | flag     | -       | -            |
 | `--reduce`        | Return background-subtracted image            | flag     | -       | -            |
+| `--G_fit`         | Apply Gaussian-fit attribute filter           | flag     | -       | -            |
 | `-h`, `--help`    | Show the help message and exit                | flag     | -       | -            |
 
 ## Acknowledgments
