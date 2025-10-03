@@ -1,5 +1,7 @@
 # MTO2 - Astronomical Source Detection Tool
 
+[![DOI](https://img.shields.io/badge/DOI-10.1515/mathm-blue.svg)](https://doi.org/10.1515/mathm-2016-0006)
+[![Astropy](https://img.shields.io/badge/powered%20by-Astropy-orange.svg)](https://www.astropy.org/)
 ##  Quick Start
 
 > [!TIP]
