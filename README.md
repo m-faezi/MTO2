@@ -52,8 +52,8 @@ python mto2.py image.fits
 | `--G_fit`         | Apply Gaussian-fit attribute filter           | flag     | -       | -            |
 | `--reduce`        | Return background-subtracted image            | flag     | -       | -            |
 | `--s_sigma`       | Standard deviation for smoothing kernel       | float    | 2.00    | ≥ 0          |
-| `--file_tag`      | Optional string to append to output filenames | string   | ""      | Any text     |
-| `--output_path`   | Directory to save output files                | string   | "."     | Valid path   |
+| `--file_tag`      | Optional string to append to output filenames | string   | ""      | any text     |
+| `--output_path`   | Directory to save output files                | string   | "."     | valid path   |
 
 
 ## Acknowledgments
