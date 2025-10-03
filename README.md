@@ -6,7 +6,9 @@
 ##  Quick Start
 
 > [!TIP]
-> Before installing MTO2, it may be useful to create a python virtual environment (e.g. using [venv](https://docs.python.org/3/library/venv.html)) to avoid dependency version conflicts.
+> It is recommended to use an isolated Python virtual environment to avoid dependency conflicts. The simplest way is to use Python's built-in [venv](https://docs.python.org/3/library/venv.html). If you already have another virtual environment active, be sure to deactivate it first.
+
+
 
 ### Dependencies
 
