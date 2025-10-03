@@ -10,3 +10,4 @@ pillow==11.3.0
 pandas==2.3.3
 fuzzy-c-means==0.0.6
 
+
