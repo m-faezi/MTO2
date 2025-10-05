@@ -27,12 +27,13 @@ modified_isophote = statistical_tests.move_up(
 )
 
 name_string = io_utils.get_output_name(arguments)
-tree_of_segments, n_map_segments, unique_ids = segment.get_segmentation_map(tree_structure, modified_isophote, header, arguments,
-                                                            name_string)
+tree_of_segments, n_map_segments, unique_ids = segment.get_segmentation_map(tree_structure, modified_isophote, header, arguments, name_string)
 
 if arguments.par_out:
     parameter_extraction.extract_parameters(image, header, tree_of_segments, n_map_segments, parent_altitude, area, unique_ids, arguments, name_string)
 
 if arguments.reduce:
-    reduced_fits = os.path.join(arguments.output_path, f"reduced.fits" if not arguments.file_tag else f"reduced{'-' + arguments.file_tag}.fits")
+
+    reduced_fits = os.path.join(arguments.output_path, f"reduced{'-' + arguments.file_tag if arguments.file_tag else ''}.fits")
     io_utils.save_fits_with_header(image - bg_mean, header, reduced_fits)
+

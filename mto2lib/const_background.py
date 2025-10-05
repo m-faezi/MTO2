@@ -11,6 +11,7 @@ rejection_rate_2 = 0
 def estimate_background(img, rejection_rate=0.05):
 
     global rejection_rate_1, rejection_rate_2
+
     rejection_rate_1 = 1 - pow(1 - rejection_rate, 0.5)
     rejection_rate_2 = 1 - pow(1 - rejection_rate, 0.25)
     tile_size = largest_flat_tile(img)
