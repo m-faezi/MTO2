@@ -1,27 +1,20 @@
-
+import os
 import numpy as np
 import higra as hg
 import pandas as pd
 from fcmeans import FCM
-from astropy.io import fits
 from astropy.wcs import WCS
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
-
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.preprocessing import StandardScaler
 
 
+def ensure_directory_exists(file_path):
 
-
-
-
-
-
-
-
-
-
+    directory = os.path.dirname(file_path)
+    if directory and not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
 
 
 def image_to_hierarchical_structure(image):

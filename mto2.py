@@ -3,6 +3,7 @@ from mto2lib import validators, preprocessing, utils, max_tree_attributes, stati
 import os
 
 image, header, arguments = mto2.setup()
+os.makedirs(arguments.output_path, exist_ok=True)
 
 image = validators.image_value_check(image)
 image_processed = preprocessing.smooth_filter(image, arguments.s_sigma)
