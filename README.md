@@ -43,6 +43,10 @@ python mto2.py image.fits
     --output_path "./results" 
     --file_tag "tuned_run"
 ```
+
+You can start working with a demo in Google Colab by clicking this badge:
+[![Google Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1yjNcUJwqliQEY0N7AYLkUD2QrubqkAzc?usp=sharing)
+
 ### Command line arguments
 
 | Option            | Description                                   | Type     | Default | Range/Values |
