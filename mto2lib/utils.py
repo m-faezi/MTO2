@@ -298,7 +298,7 @@ def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta,
         }
     )
 
-    parameters_df.to_csv(str(file_name)+".csv", index=False)
+    parameters_df.to_csv(str(file_name), index=False)
 
     return None
 

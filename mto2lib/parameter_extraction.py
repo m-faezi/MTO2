@@ -37,7 +37,7 @@ def extract_parameters(image, header, tree_of_segments, n_map_segments, parent_a
 
     output_csv = os.path.join(
         arguments.output_path,
-        name_string + ".png"
+        name_string + ".csv"
     )
 
     uts.save_parameters(
