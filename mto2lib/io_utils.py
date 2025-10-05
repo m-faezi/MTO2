@@ -25,4 +25,4 @@ def save_fits_with_header(data, header, output_path):
 
 def get_output_name(arguments):
 
-    return f"mf-{str(arguments.move_factor).replace('.', 'p')}-ar-{str(arguments.area_ratio).replace('.', 'p')}-ss-{str(arguments.s_sigma).replace('.', 'p')}{'-G' if arguments.G_fit else ''}{arguments.file_tag}"
+    return f"mf-{str(arguments.move_factor).replace('.', 'p')}-ar-{str(arguments.area_ratio).replace('.', 'p')}-ss-{str(arguments.s_sigma).replace('.', 'p')}{'-G' if arguments.G_fit else ''}{'-' + arguments.file_tag}"

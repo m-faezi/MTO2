@@ -34,5 +34,5 @@ if arguments.par_out:
     parameter_extraction.extract_parameters(image, header, tree_of_segments, n_map_segments, parent_altitude, area, unique_ids, arguments, name_string)
 
 if arguments.reduce:
-    reduced_fits = os.path.join(arguments.output_path, f"reduced{arguments.file_tag}.fits")
+    reduced_fits = os.path.join(arguments.output_path, f"reduced.fits" if not arguments.file_tag else f"reduced{'-' + arguments.file_tag}.fits")
     io_utils.save_fits_with_header(image - bg_mean, header, reduced_fits)
