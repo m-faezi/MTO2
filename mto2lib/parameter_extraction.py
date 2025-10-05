@@ -4,7 +4,17 @@ import mto2lib.utils as uts
 import os
 
 
-def extract_parameters(image, header, tree_of_segments, n_map_segments, parent_altitude, area, unique_segment_ids, arguments, name_string):
+def extract_parameters(
+        image,
+        header,
+        tree_of_segments,
+        n_map_segments,
+        parent_altitude,
+        area,
+        unique_segment_ids,
+        arguments,
+        name_string
+):
 
     print("Extracting parameters...")
 
@@ -24,8 +34,6 @@ def extract_parameters(image, header, tree_of_segments, n_map_segments, parent_a
     r_eff = [uts.half_light_radius(image, coords) for coords in coords_per_segment]
     r_fwhm = [uts.compute_r_fwhm(image, coords) for coords in coords_per_segment]
 
-    # x = x[n_map_segments][tree_of_segments.num_leaves():]
-    # y = y[n_map_segments][tree_of_segments.num_leaves():]
     centroids = [uts.weighted_centroid_coords_from_segments(image, coords) for coords in coords_per_segment]
 
     y = [cen[0] for cen in centroids]

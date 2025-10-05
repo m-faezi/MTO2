@@ -1,4 +1,3 @@
-import os
 import argparse
 import mto2lib.validators as validators
 
@@ -54,3 +53,4 @@ def make_parser():
     )
 
     return parser
+

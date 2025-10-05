@@ -70,22 +70,17 @@ def weighted_centroid(tree, size, image):
 
 def weighted_centroid_2(tree, size, image):
 
-    """Calculate flux-weighted centroids with proper normalization"""
-    # Ensure positive weights
-    weights = np.maximum(image - np.min(image), 0) + 1e-10  # Small epsilon to avoid division by zero
+    weights = np.maximum(image - np.min(image), 0) + 1e-10
     emb = hg.EmbeddingGrid2d(size)
     coord = emb.lin2grid(np.arange(tree.num_leaves()))
 
-    # Calculate weighted sums
     m = np.zeros((tree.num_leaves(), 3))
-    m[:, 0] = weights.ravel()  # Flux weights
-    m[:, 1] = coord[:, 0] * weights.ravel()  # X-weighted
-    m[:, 2] = coord[:, 1] * weights.ravel()  # Y-weighted
+    m[:, 0] = weights.ravel()
+    m[:, 1] = coord[:, 0] * weights.ravel()
+    m[:, 2] = coord[:, 1] * weights.ravel()
 
-    # Accumulate through tree
     m = hg.accumulate_sequential(tree, m, hg.Accumulators.sum)
 
-    # Calculate centroids
     x_mean = np.divide(m[:, 1], m[:, 0], out=np.zeros_like(m[:, 1]), where=m[:, 0] != 0)
     y_mean = np.divide(m[:, 2], m[:, 0], out=np.zeros_like(m[:, 2]), where=m[:, 0] != 0)
 
@@ -93,16 +88,7 @@ def weighted_centroid_2(tree, size, image):
 
 
 def weighted_centroid_coords_from_segments(image, coords):
-    """
-    Compute the flux-weighted centroid for a set of coordinates.
 
-    Args:
-        image: 2D numpy array of pixel values
-        coords: List of (y, x) coordinate tuples
-
-    Returns:
-        (y_centroid, x_centroid): Flux-weighted center coordinates
-    """
     if not coords:
         return (0.0, 0.0)
 
@@ -178,23 +164,20 @@ def half_light_radius(image, coords):
 
 
 def compute_r_fwhm(image, coords):
-    """Compute FWHM radius (fast, no subsampling)."""
+
     if not coords:
         return 0.0
 
-    # Vectorized intensity lookup and peak detection
     y, x = np.array(coords).T
     intensities = image[y, x]
     peak = np.max(intensities)
     if peak == 0:
         return 0.0
 
-    # Flux-weighted centroid (1 pass)
     flux = np.sum(intensities)
     yc = np.sum(y * intensities) / flux
     xc = np.sum(x * intensities) / flux
 
-    # Mask pixels >= half-max and compute mean distance
     mask = intensities >= peak * 0.5
     if not np.any(mask):
         return 0.0
@@ -262,9 +245,6 @@ def compute_gaussian_profile(mean, variance, distances, intensity, center=0):
     gaussian_intensity = gaussian_profile(I_0, sigma, distances, mu=center)
 
     return gaussian_intensity
-
-
-
 
 
 def sky_coordinates(y, x, header):

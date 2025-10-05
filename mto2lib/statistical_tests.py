@@ -40,8 +40,19 @@ def select_objects(tree, significant_nodes):
 
 
 def move_up(
-    tree, altitudes, area, parent_area, distances, objects, background_var, gain, gamma_distance, gaussian,
-    move_factor, G_fit, area_ratio
+        tree,
+        altitudes,
+        area,
+        parent_area,
+        distances,
+        objects,
+        background_var,
+        gain,
+        gamma_distance,
+        gaussian,
+        move_factor,
+        G_fit,
+        area_ratio
 ):
 
     main_branch = attribute_main_branch(tree)
