@@ -63,6 +63,7 @@ This software was developed for **Faint Object Detection in Multidimensional Ast
 
 MTO2 is developed using the [Higra](https://github.com/higra/Higra) Python package, and builds on their example implementation of MTO: [Astronomical object detection with the Max-Tree - MMTA 2016](https://higra.readthedocs.io/en/stable/notebooks.html#illustrative-applications-from-scientific-papers).
 
+This implementation draws inspiration from [Caroline Haigh's work](https://github.com/CarolineHaigh/mtobjects).
 
 ## Bibliography
 
