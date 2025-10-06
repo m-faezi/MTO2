@@ -30,6 +30,30 @@ def restricted_normal(value):
     return value
 
 
+def validate_crop_coordinates(value):
+
+    if not value:
+        return None
+
+    try:
+        coords = [int(coord.strip()) for coord in value.split(',')]
+        if len(coords) != 4:
+            raise ValueError("Exactly 4 coordinates required")
+
+        x1, y1, x2, y2 = coords
+
+        if x1 >= x2 or y1 >= y2:
+            raise ValueError("Coordinates must form a valid rectangle (x1 < x2, y1 < y2)")
+
+        if x1 < 0 or y1 < 0:
+            raise ValueError("Coordinates must be non-negative")
+
+        return coords
+
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(f"Invalid crop coordinates: {e}. Format: x1,y1,x2,y2")
+
+
 def image_value_check(image):
 
     if np.isnan(image).any():

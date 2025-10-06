@@ -1,7 +1,7 @@
 from astropy.io import fits
 
 
-def read_image_data(file_path):
+def read_image_data(file_path, crop_coords=None):
 
     with fits.open(file_path) as hdu_list:
 
@@ -13,7 +13,34 @@ def read_image_data(file_path):
         image = image_hdu.data
         header = image_hdu.header.copy()
 
+    if crop_coords:
+        image, header = apply_crop(image, header, crop_coords)
+
     return image, header
+
+
+def apply_crop(image, header, crop_coords):
+
+    x1, y1, x2, y2 = crop_coords
+
+    height, width = image.shape
+    x1 = max(0, min(x1, width - 1))
+    y1 = max(0, min(y1, height - 1))
+    x2 = max(x1 + 1, min(x2, width))
+    y2 = max(y1 + 1, min(y2, height))
+
+    cropped_image = image[y1:y2, x1:x2]
+
+    if 'NAXIS1' in header and 'NAXIS2' in header:
+        header['NAXIS1'] = x2 - x1
+        header['NAXIS2'] = y2 - y1
+
+        if 'CRPIX1' in header:
+            header['CRPIX1'] = header.get('CRPIX1', 1) - x1
+        if 'CRPIX2' in header:
+            header['CRPIX2'] = header.get('CRPIX2', 1) - y1
+
+    return cropped_image, header
 
 
 def save_fits_with_header(data, header, output_path):
@@ -37,6 +64,10 @@ def get_output_name(arguments):
 
     if arguments.file_tag:
         base_name += f"-{arguments.file_tag}"
+
+    if arguments.crop:
+        crop_str = arguments.crop.replace(',', '_').replace(' ', '')
+        base_name += f"-crop_{crop_str}"
 
     return base_name
 

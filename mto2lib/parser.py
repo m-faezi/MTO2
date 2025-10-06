@@ -51,6 +51,12 @@ def make_parser():
         default='.',
         help='Directory to save output files (default: current directory)'
     )
+    parser.add_argument(
+        '--crop',
+        type=str,
+        default='',
+        help='Crop region as "x1,y1,x2,y2" (e.g., "100,100,500,500")'
+    )
 
     return parser
 

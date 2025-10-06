@@ -42,6 +42,7 @@ python mto2.py image.fits
     --par_out 
     --output_path "./results" 
     --file_tag "tuned_run"
+    --crop "10, 10000, 20, 2000"
 ```
 
 You can start working with a demo in Google Colab by clicking this badge:
@@ -49,17 +50,18 @@ You can start working with a demo in Google Colab by clicking this badge:
 
 ### Command line arguments
 
-| Option            | Description                                   | Type     | Default | Range/Values |
-|-------------------|-----------------------------------------------|----------|---------|--------------|
-| `--s_sigma`       | Standard deviation for smoothing kernel       | float    | 2.00    | ≥ 0          |
-| `--move_factor`   | Adjust the spread of objects                  | float    | 0.00    | ≥ 0          |
-| `--area_ratio`    | Adjust deblending sensitivity                 | float    | 0.90    | [0.0, 1.0)   |
-| `--output_path`   | Directory to save output files                | string   | "."     | valid path   |
-| `--file_tag`      | Optional string to append to output filenames | string   | ""      | any text     |
-| `--par_out`       | Extract and save parameters in .csv format    | flag     | -       | -            |
-| `--reduce`        | Return background-subtracted image            | flag     | -       | -            |
-| `--G_fit`         | Apply Gaussian-fit attribute filter           | flag     | -       | -            |
-| `-h`, `--help`    | Show the help message and exit                | flag     | -       | -            |
+| Option          | Description                                   | Type   | Default                      | Range/Values |
+|-----------------|-----------------------------------------------|--------|------------------------------|--------------|
+| `--s_sigma`     | Standard deviation for smoothing kernel       | float  | 2.00                         | ≥ 0          |
+| `--move_factor` | Adjust the spread of objects                  | float  | 0.00                         | ≥ 0          |
+| `--area_ratio`  | Adjust deblending sensitivity                 | float  | 0.90                         | [0.0, 1.0)   |
+| `--output_path` | Directory to save output files                | string | "."                          | valid path   |
+| `--file_tag`    | Optional string to append to output filenames | string | ""                           | any text     |
+| `--par_out`     | Extract and save parameters in .csv format    | flag   | -                            | -            |
+| `--reduce`      | Return background-subtracted image            | flag   | -                            | -            |
+| `--G_fit`       | Apply Gaussian-fit attribute filter           | flag   | -                            | -            |
+| `--crop`        | Crops the image                               | string | "x_min, y_min, x_max, y_max" | image domain |
+| `-h`, `--help`  | Show the help message and exit                | flag   | -                            | -            |
 
 ## Acknowledgments
 
