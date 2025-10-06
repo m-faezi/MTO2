@@ -45,7 +45,7 @@ python mto2.py image.fits
     --crop "10, 10000, 20, 20000"
 ```
 
-You can start working with a demo in Google Colab by clicking this badge:
+Get started with a demo in Google Colab:
 [![Google Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1yjNcUJwqliQEY0N7AYLkUD2QrubqkAzc?usp=sharing)
 
 ### Command line arguments
