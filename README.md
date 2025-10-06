@@ -5,7 +5,35 @@
 [![Astropy](https://img.shields.io/badge/powered%20by-Astropy-orange.svg)](https://www.astropy.org/)
 <a href="https://github.com/m-faezi/MTO2/blob/main/CONTRIBUTING.md" alt="contributions welcome"><img src="https://img.shields.io/badge/contributions-welcome-brightgreen.svg"/></a>
 
-##  Quick Start
+<!-- omit in toc -->
+## Table of Contents
+
+- [Processing Pipeline](#processing-pipeline)
+- [Optional Post-Processing](#optional-post-processing)
+- [Installation](#installation)
+  - [Dependencies](#dependencies)
+- [Acknowledgments](#acknowledgments)
+- [Bibliography](#bibliography)
+
+
+## Processing Pipeline
+
+The procedure begins with **Gaussian smoothing**—regulated by the `s_sigma` parameter—to suppress small-scale noise. Next, a constant background is subtracted to improve source visibility. 
+
+A **max-tree** is constructed from the background-subtracted image, and a statistical test is applied to extract significant nodes based on their flux attributes.
+
+### Optional Post-Processing
+
+Arguments are available to refine the segmentation map:
+
+- **`move_factor`**: Adjusts isophotal boundaries by shifting components relative to background noise  
+- **`area_ratio`**: Threshold to improve deblending by evaluating size relationships between nodes and their parents
+- **`G_fit`**: Gaussian-fit attribute filtering
+
+> [!NOTE]
+> See Mohammad H. Faezi, [2025](#4) for a more description of the method.
+
+##  Installation
 
 > [!TIP]
 > It is recommended to use an isolated Python virtual environment to avoid dependency conflicts. The simplest way is to use Python's built-in [venv](https://docs.python.org/3/library/venv.html). If you already have another virtual environment active, be sure to deactivate it first.
