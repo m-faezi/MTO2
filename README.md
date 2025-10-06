@@ -5,6 +5,8 @@
 [![Astropy](https://img.shields.io/badge/powered%20by-Astropy-orange.svg)](https://www.astropy.org/)
 <a href="https://github.com/m-faezi/MTO2/blob/main/CONTRIBUTING.md" alt="contributions welcome"><img src="https://img.shields.io/badge/contributions-welcome-brightgreen.svg"/></a>
 
+[![pythonV](https://img.shields.io/badge/Python-3.13.7+-blue?style=for-the-badge&logo=python&logoColor=blue)](https://www.python.org)
+
 <!-- omit in toc -->
 ## Table of Contents
 
