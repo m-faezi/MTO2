@@ -31,7 +31,7 @@ Arguments are available to refine the segmentation map:
 - **`G_fit`**: Gaussian-fit attribute filtering
 
 > [!NOTE]
-> See Mohammad H. Faezi, [2025](#4) for a more description of the method.
+> See Mohammad H. Faezi, [2025](#4) for detailed description of the method.
 
 ##  Installation
 
