@@ -42,7 +42,7 @@ python mto2.py image.fits
     --par_out 
     --output_path "./results" 
     --file_tag "tuned_run"
-    --crop "10, 10000, 20, 2000"
+    --crop "10, 10000, 20, 20000"
 ```
 
 You can start working with a demo in Google Colab by clicking this badge:
