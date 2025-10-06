@@ -38,7 +38,7 @@ def validate_crop_coordinates(value):
     try:
         coords = [int(coord.strip()) for coord in value.split(',')]
         if len(coords) != 4:
-            raise ValueError("Exactly 4 coordinates required")
+            raise ValueError("Exactly 4 coordinates required: x1,y1,x2,y2")
 
         x1, y1, x2, y2 = coords
 
@@ -48,10 +48,10 @@ def validate_crop_coordinates(value):
         if x1 < 0 or y1 < 0:
             raise ValueError("Coordinates must be non-negative")
 
-        return coords
+        return (x1, y1, x2, y2)
 
     except ValueError as e:
-        raise argparse.ArgumentTypeError(f"Invalid crop coordinates: {e}. Format: x1,y1,x2,y2")
+        raise argparse.ArgumentTypeError(f"Invalid crop coordinates '{value}': {e}. Format: x1,y1,x2,y2")
 
 
 def image_value_check(image):

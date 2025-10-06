@@ -24,6 +24,7 @@ def apply_crop(image, header, crop_coords):
     x1, y1, x2, y2 = crop_coords
 
     height, width = image.shape
+
     x1 = max(0, min(x1, width - 1))
     y1 = max(0, min(y1, height - 1))
     x2 = max(x1 + 1, min(x2, width))
@@ -31,14 +32,15 @@ def apply_crop(image, header, crop_coords):
 
     cropped_image = image[y1:y2, x1:x2]
 
-    if 'NAXIS1' in header and 'NAXIS2' in header:
+    if 'NAXIS1' in header:
         header['NAXIS1'] = x2 - x1
+    if 'NAXIS2' in header:
         header['NAXIS2'] = y2 - y1
 
-        if 'CRPIX1' in header:
-            header['CRPIX1'] = header.get('CRPIX1', 1) - x1
-        if 'CRPIX2' in header:
-            header['CRPIX2'] = header.get('CRPIX2', 1) - y1
+    if 'CRPIX1' in header:
+        header['CRPIX1'] = max(1, header.get('CRPIX1', 1) - x1)
+    if 'CRPIX2' in header:
+        header['CRPIX2'] = max(1, header.get('CRPIX2', 1) - y1)
 
     return cropped_image, header
 
