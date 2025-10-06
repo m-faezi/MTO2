@@ -46,7 +46,7 @@ def centroid(tree, size):
 def weighted_centroid(tree, size, image):
 
     image -= max(np.min(image), 0)
-    im = np.exp(image)
+    # image = np.exp(image)
     emb = hg.EmbeddingGrid2d(size)
     coord = emb.lin2grid(np.arange(tree.num_leaves()))
 
@@ -55,7 +55,7 @@ def weighted_centroid(tree, size, image):
     m[:, 1] = coord[:, 0]
     m[:, 2] = coord[:, 1]
     m = np.array(
-        [[im[int(i[1]), int(i[2])], i[1] * im[int(i[1]), int(i[2])], i[2] * im[int(i[1]), int(i[2])]] for i in m]
+        [[image[int(i[1]), int(i[2])], i[1] * image[int(i[1]), int(i[2])], i[2] * image[int(i[1]), int(i[2])]] for i in m]
     )
     m = hg.accumulate_sequential(tree, m, hg.Accumulators.sum)
     m00 = m[:, 0]
@@ -306,7 +306,7 @@ def total_flux(tree, size, image):
 def second_order_moments(tree, size, image):
 
     image -= max(np.min(image), 0)
-    im = np.exp(image)
+    # image = np.exp(image)
     emb = hg.EmbeddingGrid2d(size)
     coord = emb.lin2grid(np.arange(tree.num_leaves()))
     m = np.zeros((tree.num_leaves(), 6), dtype=np.float64)
@@ -317,12 +317,12 @@ def second_order_moments(tree, size, image):
     m[:, 4] = coord[:, 1] ** 2
     m[:, 5] = coord[:, 0] * coord[:, 1]
 
-    m = np.array([[im[int(i[1]), int(i[2])],
-                   i[1] * im[int(i[1]), int(i[2])],
-                   i[2] * im[int(i[1]), int(i[2])],
-                   (i[1] ** 2) * im[int(i[1]), int(i[2])],
-                   (i[2] ** 2) * im[int(i[1]), int(i[2])],
-                   (i[1] * i[2]) * im[int(i[1]), int(i[2])]] for i in m])
+    m = np.array([[image[int(i[1]), int(i[2])],
+                   i[1] * image[int(i[1]), int(i[2])],
+                   i[2] * image[int(i[1]), int(i[2])],
+                   (i[1] ** 2) * image[int(i[1]), int(i[2])],
+                   (i[2] ** 2) * image[int(i[1]), int(i[2])],
+                   (i[1] * i[2]) * image[int(i[1]), int(i[2])]] for i in m])
 
     m = hg.accumulate_sequential(tree, m, hg.Accumulators.sum)
     m00 = m[:, 0]
