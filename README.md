@@ -27,7 +27,7 @@ A **max-tree** is constructed from the background-subtracted image, and statisti
 Arguments are available to refine the segmentation map:
 
 - **`move_factor`**: Adjusts isophotal boundaries by shifting components relative to background noise  
-- **`area_ratio`**: Corrects deblending by evaluating size relationships between nodes and their parents
+- **`area_ratio`**: Corrects deblending by evaluating area size relationships between nodes and their parents
 - **`G_fit`**: Gaussian-fit attribute filtering
 
 > [!NOTE]
