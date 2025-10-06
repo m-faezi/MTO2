@@ -48,7 +48,10 @@ python mto2.py image.fits
 Get started with a demo in Google Colab:
 [![Google Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1yjNcUJwqliQEY0N7AYLkUD2QrubqkAzc?usp=sharing)
 
+
 ### Command line arguments
+
+<small>
 
 | Option          | Description                                   | Type   | Default                      | Range/Values |
 |-----------------|-----------------------------------------------|--------|------------------------------|--------------|
@@ -62,6 +65,8 @@ Get started with a demo in Google Colab:
 | `--G_fit`       | Apply Gaussian-fit attribute filter           | flag   | -                            | -            |
 | `--crop`        | Crops the image                               | string | "x_min, y_min, x_max, y_max" | image domain |
 | `-h`, `--help`  | Show the help message and exit                | flag   | -                            | -            |
+
+</small>
 
 ## Acknowledgments
 
