@@ -70,7 +70,6 @@ python mto2.py image.fits
     --G_fit 
     --par_out 
     --background_mode const
-    --get_morph_background
     --output_path ./results
     --file_tag "tuned_run"
     --crop "10, 10000, 20, 20000"
