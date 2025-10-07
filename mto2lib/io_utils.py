@@ -68,8 +68,7 @@ def get_output_name(arguments):
         base_name += f"-{arguments.file_tag}"
 
     if arguments.crop:
-        crop_str = arguments.crop.replace(',', '_').replace(' ', '')
+        crop_str = f"{arguments.crop[0]}_{arguments.crop[1]}_{arguments.crop[2]}_{arguments.crop[3]}"
         base_name += f"-crop_{crop_str}"
 
     return base_name
-

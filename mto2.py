@@ -24,9 +24,11 @@ if actual_mode != requested_mode:
 
     print(f"Note: Background mode fell back from '{requested_mode}' to '{actual_mode}'!")
 
+crop_str = f"{arguments.crop[0]}_{arguments.crop[1]}_{arguments.crop[2]}_{arguments.crop[3]}" if arguments.crop else ""
+
 bg_output = os.path.join(
     arguments.output_path,
-    f"background_{actual_mode}{'-' + arguments.file_tag if arguments.file_tag else ''}{'-crop_' + arguments.crop.replace(',', '_').replace(' ', '') if arguments.crop else ''}.fits"
+    f"background_{actual_mode}{'-' + arguments.file_tag if arguments.file_tag else ''}{'-crop_' + crop_str if arguments.crop else ''}.fits"
 )
 
 io_utils.save_fits_with_header(bg_map, header, bg_output)
@@ -36,7 +38,7 @@ image_reduced = image_processed - bg_mean
 
 reduced_output = os.path.join(
     arguments.output_path,
-    f"reduced_{actual_mode}{'-' + arguments.file_tag if arguments.file_tag else ''}{'-crop_' + arguments.crop.replace(',', '_').replace(' ', '') if arguments.crop else ''}.fits"
+    f"reduced_{actual_mode}{'-' + arguments.file_tag if arguments.file_tag else ''}{'-crop_' + crop_str if arguments.crop else ''}.fits"
 )
 
 io_utils.save_fits_with_header(image_reduced, header, reduced_output)

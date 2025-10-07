@@ -20,7 +20,7 @@ def setup():
     if arguments.crop:
 
         base_name = os.path.splitext(os.path.basename(arguments.file_path))[0]
-        crop_str = arguments.crop.replace(',', '_').replace(' ', '')
+        crop_str = f"{arguments.crop[0]}_{arguments.crop[1]}_{arguments.crop[2]}_{arguments.crop[3]}"
         cropped_output_path = os.path.join(
             arguments.output_path,
             f"{base_name}_crop_{crop_str}.fits"
