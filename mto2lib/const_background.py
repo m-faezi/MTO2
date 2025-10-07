@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import stats
+import mto2lib.morphological_background as mb
 
 
 _reject_tile = False
@@ -14,11 +15,18 @@ def estimate_background(img, rejection_rate=0.05, return_map=False):
 
     rejection_rate_1 = 1 - pow(1 - rejection_rate, 0.5)
     rejection_rate_2 = 1 - pow(1 - rejection_rate, 0.25)
+    
     tile_size = largest_flat_tile(img)
 
     if tile_size == 0:
 
-        return None
+        if return_map:
+
+            return mb.estimate_structural_background(img, return_map=True)
+
+        else:
+
+            return mb.estimate_structural_background(img, return_map=False)
 
     bg_mean, bg_var, gain = collect_info(img, tile_size)
 
