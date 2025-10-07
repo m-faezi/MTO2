@@ -2,6 +2,7 @@ from scipy.ndimage import gaussian_filter
 import mto2lib.morphological_background as mb
 import mto2lib.const_background as cb
 
+
 def smooth_filter(image, sigma):
 
     return gaussian_filter(image, sigma)
