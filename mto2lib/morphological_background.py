@@ -89,7 +89,7 @@ def estimate_structural_background(image, return_map=False):
 
     if return_map:
 
-        return bg_mean, bg_var, gain, morph_background_map
+        return morph_background_map, bg_var, gain, morph_background_map
 
     else:
 
