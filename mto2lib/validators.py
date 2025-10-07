@@ -97,7 +97,7 @@ def image_value_check_2(image):
         if finite_values.size == 0:
 
             raise ValueError("Image contains no finite values (only infinities or NaNs).")
-        
+
         max_value = finite_values.max()
         min_value = finite_values.min()
         image = np.where(image == np.inf, max_value, image)

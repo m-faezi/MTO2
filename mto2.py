@@ -13,11 +13,15 @@ requested_mode = arguments.background_mode
 actual_mode = requested_mode
 
 if arguments.background_mode == 'const':
+
     bg_mean, bg_var, bg_gain, bg_map, actual_mode = preprocessing.get_constant_background_map(image_processed)
+
 else:
+
     bg_mean, bg_var, bg_gain, bg_map, actual_mode = preprocessing.get_morphological_background_map(image_processed)
 
 if actual_mode != requested_mode:
+    
     print(f"Note: Background mode fell back from '{requested_mode}' to '{actual_mode}'!")
 
 bg_output = os.path.join(
