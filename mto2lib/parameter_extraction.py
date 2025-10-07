@@ -32,7 +32,7 @@ def extract_parameters(
             label = seg_array[y_, x_]
 
             if label >= 0:
-                
+
                 coords_per_segment[label].append((y_, x_))
 
     r_eff = [uts.half_light_radius(image, coords) for coords in coords_per_segment]

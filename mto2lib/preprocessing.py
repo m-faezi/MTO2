@@ -11,6 +11,7 @@ def smooth_filter(image, sigma):
 def estimate_background(image):
 
     bg_mean, bg_var, bg_gain, bg_type = cb.estimate_background(image, return_map=False)
+
     return bg_mean, bg_var, bg_gain
 
 
