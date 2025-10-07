@@ -59,7 +59,7 @@ def get_output_name(arguments):
     area_ratio_str = str(arguments.area_ratio).replace('.', 'p')
     s_sigma_str = str(arguments.s_sigma).replace('.', 'p')
 
-    base_name = f"mf-{move_factor_str}-ar-{area_ratio_str}-ss-{s_sigma_str}"
+    base_name = f"mf-{move_factor_str}-ar-{area_ratio_str}-ss-{s_sigma_str}-bg-{arguments.background_mode}"
 
     if arguments.G_fit:
         base_name += "-G"

@@ -22,11 +22,15 @@ def estimate_background(img, rejection_rate=0.05, return_map=False):
 
         if return_map:
 
-            return mb.estimate_structural_background(img, return_map=True)
+            bg_mean, bg_var, bg_gain, bg_map = mb.estimate_structural_background(img, return_map=True)
+
+            return bg_mean, bg_var, bg_gain, bg_map, 'morph'
 
         else:
 
-            return mb.estimate_structural_background(img, return_map=False)
+            bg_mean, bg_var, bg_gain = mb.estimate_structural_background(img, return_map=False)
+
+            return bg_mean, bg_var, bg_gain, 'morph'
 
     bg_mean, bg_var, gain = collect_info(img, tile_size)
 
@@ -34,11 +38,11 @@ def estimate_background(img, rejection_rate=0.05, return_map=False):
 
         background_map = np.full_like(img, bg_mean, dtype=np.float64)
 
-        return bg_mean, bg_var, gain, background_map
+        return bg_mean, bg_var, gain, background_map, 'const'
 
     else:
 
-        return bg_mean, bg_var, gain
+        return bg_mean, bg_var, gain, 'const'
 
 
 def largest_flat_tile(img, tile_size_start=6, tile_size_min=4, tile_size_max=7):
@@ -50,17 +54,21 @@ def largest_flat_tile(img, tile_size_start=6, tile_size_min=4, tile_size_max=7):
     if available_tiles(img, current_size):
 
         while current_size < max_size:
+
             current_size *= 2
+
             if not available_tiles(img, current_size):
 
-                return int(current_size/2)
+                return int(current_size / 2)
 
         return max_size
 
     else:
 
         while current_size > min_size:
+
             current_size = int(current_size / 2)
+
             if available_tiles(img, current_size):
 
                 return min_size
@@ -71,7 +79,9 @@ def largest_flat_tile(img, tile_size_start=6, tile_size_min=4, tile_size_max=7):
 def available_tiles(img, tile_length):
 
     for y in range(0, img.shape[0] - tile_length, tile_length):
+
         for x in range(0, img.shape[1] - tile_length, tile_length):
+
             if check_tile_is_flat(img[y: y + tile_length, x: x + tile_length]):
 
                 return True
@@ -84,8 +94,11 @@ def collect_info(img, tile_length):
     flat_tiles = []
 
     for y in range(0, img.shape[0] - tile_length, tile_length):
+
         for x in range(0, img.shape[1] - tile_length, tile_length):
+
             if check_tile_is_flat(img[y: y + tile_length, x: x + tile_length]):
+
                 flat_tiles.append([x, y])
 
     return est_mean_and_variance_gain(img, tile_length, flat_tiles)
@@ -121,8 +134,7 @@ def check_tile_means(tile, sig_level):
 
         return _reject_tile
 
-    if not test_mean_equality(
-            tile[:, :half_width], tile[:, half_width:], sig_level):
+    if not test_mean_equality(tile[:, :half_width], tile[:, half_width:], sig_level):
 
         return _reject_tile
 

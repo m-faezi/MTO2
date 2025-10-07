@@ -7,6 +7,13 @@ def make_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('file_path', type=str, help='Path to the image file')
     parser.add_argument(
+        '--background_mode',
+        type=str,
+        choices=['const', 'morph'],
+        default='const',
+        help='Background estimation mode: "const" for constant, "morph" for morphological (default: const)'
+    )
+    parser.add_argument(
         '--move_factor',
         type=validators.restricted_non_negative,
         default=0,
@@ -33,21 +40,6 @@ def make_parser():
         '--G_fit',
         action='store_true',
         help='Applies morphological Gaussian filter'
-    )
-    parser.add_argument(
-        '--reduce',
-        action='store_true',
-        help='Returns background subtracted image'
-    )
-    parser.add_argument(
-        '--get_cons_background',
-        action='store_true',
-        help='Save constant background estimation as FITS file'
-    )
-    parser.add_argument(
-        '--get_morph_background',
-        action='store_true',
-        help='Save morphological background estimation as FITS file'
     )
     parser.add_argument(
         '--file_tag',
