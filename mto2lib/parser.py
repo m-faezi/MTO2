@@ -40,6 +40,16 @@ def make_parser():
         help='Returns background subtracted image'
     )
     parser.add_argument(
+        '--get_cons_background',
+        action='store_true',
+        help='Save constant background estimation as FITS file'
+    )
+    parser.add_argument(
+        '--get_morph_background',
+        action='store_true',
+        help='Save morphological background estimation as FITS file'
+    )
+    parser.add_argument(
         '--file_tag',
         type=str,
         default='',

@@ -3,7 +3,7 @@ import higra as hg
 import numpy as np
 
 
-def estimate_structural_background(image):
+def estimate_structural_background(image, return_map=False):
 
     graph_structure, tree_structure, altitudes = uts.image_to_hierarchical_structure(image)
 
@@ -48,7 +48,7 @@ def estimate_structural_background(image):
             )
         )
 
-        background = hg.reconstruct_leaf_data(tree_non_source, altitudes[n_map_non_source])
+        morph_background = hg.reconstruct_leaf_data(tree_non_source, altitudes[n_map_non_source])
 
     else:
 
@@ -68,12 +68,14 @@ def estimate_structural_background(image):
         tree_non_source, n_map_non_source = hg.simplify_tree(
             tree_structure,
             np.logical_or(
-                all_labels == all_labels[tree_structure.root()],
+                all_labels != all_labels[tree_structure.root()],
                 altitudes / area >= gaussian_intensities
             )
         )
 
-        background = hg.reconstruct_leaf_data(tree_non_source, altitudes[n_map_non_source])
+        morph_background = hg.reconstruct_leaf_data(tree_non_source, altitudes[n_map_non_source])
+
+    morph_background_map = np.full_like(image, morph_background, dtype=np.float64)
 
     soft_bias = 0.0
     image_minimum = np.nanmin(image)
@@ -81,10 +83,16 @@ def estimate_structural_background(image):
     if image_minimum < 0:
         soft_bias = image_minimum
 
-    bg_mean = np.nanmean(background, axis=None)
-    bg_var = np.nanvar(background, axis=None)
+    bg_mean = np.nanmean(morph_background, axis=None)
+    bg_var = np.nanvar(morph_background, axis=None)
     gain = (bg_mean - np.abs(soft_bias)) / np.maximum(bg_var, np.finfo(np.float64).eps)
 
-    return bg_mean, bg_var, gain
+    if return_map:
+
+        return bg_mean, bg_var, gain, morph_background_map
+
+    else:
+
+        return bg_mean, bg_var, gain
 
 
