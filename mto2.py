@@ -22,7 +22,7 @@ if actual_mode != requested_mode:
 
 bg_output = os.path.join(
     arguments.output_path,
-    f"background_{actual_mode}{'-' + arguments.file_tag if arguments.file_tag else ''}.fits"
+    f"background_{actual_mode}{'-' + arguments.file_tag if arguments.file_tag else ''}{'-crop_' + arguments.crop.replace(',', '_').replace(' ', '') if arguments.crop else ''}.fits"
 )
 
 io_utils.save_fits_with_header(bg_map, header, bg_output)
@@ -32,7 +32,7 @@ image_reduced = image_processed - bg_mean
 
 reduced_output = os.path.join(
     arguments.output_path,
-    f"reduced_{actual_mode}{'-' + arguments.file_tag if arguments.file_tag else ''}.fits"
+    f"reduced_{actual_mode}{'-' + arguments.file_tag if arguments.file_tag else ''}{'-crop_' + arguments.crop.replace(',', '_').replace(' ', '') if arguments.crop else ''}.fits"
 )
 
 io_utils.save_fits_with_header(image_reduced, header, reduced_output)
