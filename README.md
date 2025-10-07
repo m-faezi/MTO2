@@ -70,6 +70,8 @@ python mto2.py image.fits
     --G_fit 
     --reduce 
     --par_out 
+    --get_cons_background
+    --get_morph_background
     --output_path "./results" 
     --file_tag "tuned_run"
     --crop "10, 10000, 20, 20000"
@@ -81,22 +83,20 @@ Get started with a demo in Google Colab:
 
 ### Command line arguments
 
-<small>
-
-| Option          | Description                                   | Type   | Default                      | Range/Values |
-|-----------------|-----------------------------------------------|--------|------------------------------|--------------|
-| `--s_sigma`     | Standard deviation for smoothing kernel       | float  | 2.00                         | ≥ 0          |
-| `--move_factor` | Adjust the spread of objects                  | float  | 0.00                         | ≥ 0          |
-| `--area_ratio`  | Adjust deblending sensitivity                 | float  | 0.90                         | [0.0, 1.0)   |
-| `--output_path` | Directory to save output files                | string | "."                          | valid path   |
-| `--file_tag`    | Optional string to append to output filenames | string | ""                           | any text     |
-| `--par_out`     | Extract and save parameters in .csv format    | flag   | -                            | -            |
-| `--reduce`      | Return background-subtracted image            | flag   | -                            | -            |
-| `--G_fit`       | Apply Gaussian-fit attribute filter           | flag   | -                            | -            |
-| `--crop`        | Crops the image                               | string | "x_min, y_min, x_max, y_max" | image domain |
-| `-h`, `--help`  | Show the help message and exit                | flag   | -                            | -            |
-
-</small>
+| Option                   | Description                                      | Type   | Default                      | Range/Values |
+|--------------------------|--------------------------------------------------|--------|------------------------------|--------------|
+| `--s_sigma`              | Standard deviation for smoothing kernel          | float  | 2.00                         | ≥ 0          |
+| `--move_factor`          | Adjust the spread of objects                     | float  | 0.00                         | ≥ 0          |
+| `--area_ratio`           | Adjust deblending sensitivity                    | float  | 0.90                         | [0.0, 1.0)   |
+| `--output_path`          | Directory to save output files                   | string | "."                          | valid path   |
+| `--file_tag`             | Optional string to append to output filenames    | string | ""                           | any text     |
+| `--par_out`              | Extract and save parameters in .csv format       | flag   | -                            | -            |
+| `--reduce`               | Saves constant background subtracted image       | flag   | -                            | -            |
+| `--G_fit`                | Apply Gaussian-fit attribute filter              | flag   | -                            | -            |
+| `--get_cons_background`  | Save constant background map as FITS             | flag   | -                            | -            |
+| `--get_morph_background` | Save morphological background estimation as FITS | flag   | -                            | -            |
+| `--crop`                 | Crops the image                                  | string | "x_min, y_min, x_max, y_max" | image domain |
+| `-h`, `--help`           | Show the help message and exit                   | flag   | -                            | -            |
 
 ## Acknowledgments
 
