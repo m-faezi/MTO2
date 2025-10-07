@@ -26,9 +26,13 @@ def extract_parameters(
     coords_per_segment = [[] for _ in range(len(segment_ids))]
 
     for y_ in range(seg_array.shape[0]):
+
         for x_ in range(seg_array.shape[1]):
+
             label = seg_array[y_, x_]
+
             if label >= 0:
+                
                 coords_per_segment[label].append((y_, x_))
 
     r_eff = [uts.half_light_radius(image, coords) for coords in coords_per_segment]
