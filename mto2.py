@@ -21,7 +21,7 @@ else:
     bg_mean, bg_var, bg_gain, bg_map, actual_mode = preprocessing.get_morphological_background_map(image_processed)
 
 if actual_mode != requested_mode:
-    
+
     print(f"Note: Background mode fell back from '{requested_mode}' to '{actual_mode}'!")
 
 bg_output = os.path.join(
@@ -55,6 +55,7 @@ x, y, distances, mean, variance, area, parent_area, gaussian_intensities, volume
 significant_nodes = statistical_tests.attribute_statistical_significance(
     tree_structure, altitudes, volume, area, bg_var, bg_gain
 )
+
 objects = statistical_tests.select_objects(tree_structure, significant_nodes)
 
 modified_isophote = statistical_tests.move_up(
