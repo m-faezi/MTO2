@@ -68,7 +68,6 @@ python mto2.py image.fits
     --move_factor 0.1 
     --area_ratio 0.91  
     --G_fit 
-    --reduce 
     --par_out 
     --background_mode const
     --get_morph_background
