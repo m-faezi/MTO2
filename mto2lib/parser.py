@@ -49,13 +49,6 @@ def make_parser():
     )
 
     parser.add_argument(
-        '--file_tag',
-        type=str,
-        default='',
-        help='Optional string to append to saved file names'
-    )
-
-    parser.add_argument(
         '--time_stamp',
         action='store_false',
         default=None,

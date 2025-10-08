@@ -19,7 +19,6 @@ def save_parameters_metadata(arguments, actual_background_mode=None):
             "area_ratio": arguments.area_ratio,
             "s_sigma": arguments.s_sigma,
             "G_fit": arguments.G_fit,
-            "file_tag": arguments.file_tag if arguments.file_tag else "",
             "crop": arguments.crop if arguments.crop else None
         }
     }
