@@ -70,7 +70,7 @@ python mto2.py image.fits
     --G_fit 
     --par_out 
     --background_mode const
-    --crop 10 10000 20 20000
+    --crop 10 20 10000 20000
 ```
 
 Get started with a demo in Google Colab:
