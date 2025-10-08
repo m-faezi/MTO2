@@ -70,7 +70,6 @@ python mto2.py image.fits
     --G_fit 
     --par_out 
     --background_mode const
-    --file_tag "tuned_run"
     --crop 10 10000 20 20000
 ```
 
@@ -85,7 +84,6 @@ Get started with a demo in Google Colab:
 | `--s_sigma`              | Standard deviation for smoothing kernel          | float     | 2.00                       | ≥ 0          |
 | `--move_factor`          | Adjust the spread of objects                     | float     | 0.00                       | ≥ 0          |
 | `--area_ratio`           | Adjust deblending sensitivity                    | float     | 0.90                       | [0.0, 1.0)   |
-| `--file_tag`             | Optional string to append to output filenames    | string    | ""                         | any text     |
 | `--par_out`              | Extract and save parameters in .csv format       | flag      | -                          | -            |
 | `--G_fit`                | Apply Gaussian-fit attribute filter              | flag      | -                          | -            |
 | `--background_mode`      | Select constant or morphological background      | choice    | const                      | const, morph |
