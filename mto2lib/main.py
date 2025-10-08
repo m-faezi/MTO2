@@ -1,6 +1,7 @@
 from mto2lib import io_utils
 from mto2lib.parser import make_parser
 from mto2lib.validators import validate_crop_coordinates
+from datetime import datetime
 import os
 
 
@@ -8,7 +9,8 @@ def setup():
 
     arguments = make_parser().parse_args()
 
-    os.makedirs(arguments.output_path, exist_ok=True)
+    arguments.time_stamp = datetime.now().isoformat()
+    os.makedirs(arguments.time_stamp, exist_ok=True)
 
     crop_coords = None
 
@@ -20,15 +22,13 @@ def setup():
 
     if arguments.crop:
 
-        base_name = os.path.splitext(os.path.basename(arguments.file_path))[0]
-
-        cropped_output_path = os.path.join(
-            arguments.output_path,
-            f"crop-{base_name}.fits"
+        cropped_time_stamp = os.path.join(
+            arguments.time_stamp,
+            "processed_input.fits"
         )
 
-        io_utils.save_fits_with_header(image, header, cropped_output_path)
-        print(f"Saved cropped image to: {cropped_output_path}")
+        io_utils.save_fits_with_header(image, header, cropped_time_stamp)
+        print(f"Saved cropped image to: {cropped_time_stamp}")
 
     return image, header, arguments
 

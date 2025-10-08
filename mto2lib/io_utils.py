@@ -1,17 +1,17 @@
 from astropy.io import fits
 import json
-from datetime import datetime
 import os
 
 
-def save_parameters_metadata(arguments, output_path, actual_background_mode=None):
+def save_parameters_metadata(arguments, actual_background_mode=None):
 
     background_mode_used = actual_background_mode if actual_background_mode else arguments.background_mode
 
     metadata = {
         "software": "MTO2",
         "version": "1.0.0",
-        "processing_date": datetime.now().isoformat(),
+        "time_stamp": arguments.time_stamp,
+        "file name": os.path.splitext(os.path.basename(arguments.file_path))[0],
         "arguments": {
             "background_mode_requested": arguments.background_mode,
             "background_mode_used": background_mode_used,
@@ -20,12 +20,11 @@ def save_parameters_metadata(arguments, output_path, actual_background_mode=None
             "s_sigma": arguments.s_sigma,
             "G_fit": arguments.G_fit,
             "file_tag": arguments.file_tag if arguments.file_tag else "",
-            "output_path": arguments.output_path,
             "crop": arguments.crop if arguments.crop else None
         }
     }
 
-    metadata_file = os.path.join(output_path, "metadata.json")
+    metadata_file = os.path.join(arguments.time_stamp, "metadata.json")
 
     with open(metadata_file, 'w') as f:
 
@@ -88,10 +87,10 @@ def apply_crop(image, header, crop_coords):
     return cropped_image, header
 
 
-def save_fits_with_header(data, header, output_path):
+def save_fits_with_header(data, header, time_stamp):
 
     hdu = fits.PrimaryHDU(data, header=header)
-    hdu.writeto(output_path, overwrite=True)
+    hdu.writeto(time_stamp, overwrite=True)
 
     return None
 

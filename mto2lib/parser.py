@@ -56,10 +56,10 @@ def make_parser():
     )
 
     parser.add_argument(
-        '--output_path',
-        type=str,
-        default='./MTO2-results',
-        help='Directory to save output files (default: current directory)'
+        '--time_stamp',
+        action='store_false',
+        default=None,
+        help='TimeStamp directory to save output files'
     )
 
     parser.add_argument(
