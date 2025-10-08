@@ -23,7 +23,7 @@ def setup():
 
     if arguments.crop:
 
-        cropped_file = os.path.join(results_dir, "processed_input.fits")
+        cropped_file = os.path.join(results_dir, "cropped_input.fits")
 
         io_utils.save_fits_with_header(image, header, cropped_file)
         print(f"Saved cropped image to: {cropped_file}")
