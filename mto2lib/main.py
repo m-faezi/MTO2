@@ -29,7 +29,6 @@ def setup():
 
         io_utils.save_fits_with_header(image, header, cropped_output_path)
         print(f"Saved cropped image to: {cropped_output_path}")
-        io_utils.save_parameters_metadata(arguments, arguments.output_path)
 
     return image, header, arguments
 

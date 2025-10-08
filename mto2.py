@@ -20,7 +20,6 @@ else:
 if actual_mode != requested_mode:
     print(f"Note: Background mode fell back from '{requested_mode}' to '{actual_mode}'!")
 
-# Pass the actual background mode to metadata
 io_utils.save_parameters_metadata(arguments, arguments.output_path, actual_background_mode=actual_mode)
 
 bg_output = os.path.join(arguments.output_path, "background_map.fits")
