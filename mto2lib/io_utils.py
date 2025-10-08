@@ -1,10 +1,42 @@
 from astropy.io import fits
+import json
+from datetime import datetime
+import os
+
+
+def save_parameters_metadata(arguments, output_path, actual_background_mode=None):
+    """Save processing parameters as JSON metadata"""
+
+    # Use actual background mode if provided (for fallback cases), otherwise use requested
+    background_mode_used = actual_background_mode if actual_background_mode else arguments.background_mode
+
+    metadata = {
+        "software": "MTO2",
+        "version": "1.0.0",
+        "processing_date": datetime.now().isoformat(),
+        "parameters": {
+            "background_mode_requested": arguments.background_mode,
+            "background_mode_used": background_mode_used,
+            "move_factor": arguments.move_factor,
+            "area_ratio": arguments.area_ratio,
+            "s_sigma": arguments.s_sigma,
+            "G_fit": arguments.G_fit,
+            "file_tag": arguments.file_tag if arguments.file_tag else "",
+            "crop": arguments.crop if arguments.crop else None
+        }
+    }
+
+    metadata_file = os.path.join(output_path, "metadata.json")
+
+    with open(metadata_file, 'w') as f:
+        json.dump(metadata, f, indent=2)
+
+    print(f"Saved parameters metadata to: {metadata_file}")
+    return metadata_file
 
 
 def read_image_data(file_path, crop_coords=None):
-
     with fits.open(file_path) as hdu_list:
-
         image_hdu = next((hdu for hdu in hdu_list if hdu.data is not None), None)
 
         if image_hdu is None:
@@ -20,7 +52,6 @@ def read_image_data(file_path, crop_coords=None):
 
 
 def apply_crop(image, header, crop_coords):
-
     x1, y1, x2, y2 = crop_coords
 
     height, width = image.shape
@@ -46,29 +77,17 @@ def apply_crop(image, header, crop_coords):
 
 
 def save_fits_with_header(data, header, output_path):
-
     hdu = fits.PrimaryHDU(data, header=header)
     hdu.writeto(output_path, overwrite=True)
-
     return None
 
 
 def get_output_name(arguments):
-
-    move_factor_str = str(arguments.move_factor).replace('.', 'p')
-    area_ratio_str = str(arguments.area_ratio).replace('.', 'p')
-    s_sigma_str = str(arguments.s_sigma).replace('.', 'p')
-
-    base_name = f"mf-{move_factor_str}-ar-{area_ratio_str}-ss-{s_sigma_str}-bg-{arguments.background_mode}"
-
-    if arguments.G_fit:
-        base_name += "-G"
+    """Generate minimal base name"""
+    base_name = "mto2"
 
     if arguments.file_tag:
-        base_name += f"-{arguments.file_tag}"
-
-    if arguments.crop:
-        crop_str = f"{arguments.crop[0]}_{arguments.crop[1]}_{arguments.crop[2]}_{arguments.crop[3]}"
-        base_name += f"-crop_{crop_str}"
+        base_name += f"_{arguments.file_tag}"
 
     return base_name
+

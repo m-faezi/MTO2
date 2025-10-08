@@ -20,14 +20,14 @@ def setup():
     if arguments.crop:
 
         base_name = os.path.splitext(os.path.basename(arguments.file_path))[0]
-        crop_str = f"{arguments.crop[0]}_{arguments.crop[1]}_{arguments.crop[2]}_{arguments.crop[3]}"
         cropped_output_path = os.path.join(
             arguments.output_path,
-            f"{base_name}_crop_{crop_str}.fits"
+            f"{base_name}_crop.fits"
         )
 
         io_utils.save_fits_with_header(image, header, cropped_output_path)
         print(f"Saved cropped image to: {cropped_output_path}")
+        io_utils.save_parameters_metadata(arguments, arguments.output_path)
 
     return image, header, arguments
 

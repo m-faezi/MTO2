@@ -13,41 +13,25 @@ requested_mode = arguments.background_mode
 actual_mode = requested_mode
 
 if arguments.background_mode == 'const':
-
     bg_mean, bg_var, bg_gain, bg_map, actual_mode = preprocessing.get_constant_background_map(image_processed)
-
 else:
-
     bg_mean, bg_var, bg_gain, bg_map, actual_mode = preprocessing.get_morphological_background_map(image_processed)
 
 if actual_mode != requested_mode:
-
     print(f"Note: Background mode fell back from '{requested_mode}' to '{actual_mode}'!")
 
-crop_str = f"{arguments.crop[0]}_{arguments.crop[1]}_{arguments.crop[2]}_{arguments.crop[3]}" if arguments.crop else ""
+# Pass the actual background mode to metadata
+io_utils.save_parameters_metadata(arguments, arguments.output_path, actual_background_mode=actual_mode)
 
-bg_output = os.path.join(
-    arguments.output_path,
-    f"background_{actual_mode}{'-' + arguments.file_tag if arguments.file_tag else ''}{'-crop_' + crop_str if arguments.crop else ''}.fits"
-)
-
+bg_output = os.path.join(arguments.output_path, "background_map.fits")
 io_utils.save_fits_with_header(bg_map, header, bg_output)
 print(f"Saved {actual_mode} background to: {bg_output}")
 
 image_reduced = image_processed - bg_mean
 
-reduced_output = os.path.join(
-    arguments.output_path,
-    f"reduced_{actual_mode}{'-' + arguments.file_tag if arguments.file_tag else ''}{'-crop_' + crop_str if arguments.crop else ''}.fits"
-)
-
+reduced_output = os.path.join(arguments.output_path, "reduced.fits")
 io_utils.save_fits_with_header(image_reduced, header, reduced_output)
 print(f"Saved reduced image to: {reduced_output}")
-
-original_background_mode = arguments.background_mode
-arguments.background_mode = actual_mode
-name_string = io_utils.get_output_name(arguments)
-arguments.background_mode = original_background_mode
 
 graph_structure, tree_structure, altitudes = utils.image_to_hierarchical_structure(image_reduced)
 
@@ -69,12 +53,10 @@ tree_of_segments, n_map_segments, unique_ids = segment.get_segmentation_map(
     tree_structure,
     modified_isophote,
     header,
-    arguments,
-    name_string
+    arguments
 )
 
 if arguments.par_out:
-
     parameter_extraction.extract_parameters(
         image,
         header,
@@ -84,6 +66,4 @@ if arguments.par_out:
         area,
         unique_ids,
         arguments,
-        name_string
     )
-
