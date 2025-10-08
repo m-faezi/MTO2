@@ -4,7 +4,10 @@ __pycache__/
 *$py.class
 .idea
 /data/*.fits
+/MTO2-results
 *.png
 *.csv
 *.fits
+*.json
 venvs/
+
