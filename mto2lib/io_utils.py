@@ -22,6 +22,7 @@ def save_parameters_metadata(arguments, output_path, actual_background_mode=None
             "s_sigma": arguments.s_sigma,
             "G_fit": arguments.G_fit,
             "file_tag": arguments.file_tag if arguments.file_tag else "",
+            "output_path": arguments.output_path,
             "crop": arguments.crop if arguments.crop else None
         }
     }
