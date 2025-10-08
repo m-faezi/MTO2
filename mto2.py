@@ -45,8 +45,8 @@ significant_nodes = statistical_tests.attribute_statistical_significance(
 objects = statistical_tests.select_objects(tree_structure, significant_nodes)
 
 modified_isophote = statistical_tests.move_up(
-    tree_structure, altitudes, area, parent_area, distances, objects, bg_var, bg_gain,
-    parent_gamma - gamma, gaussian_intensities, arguments.move_factor, arguments.G_fit, arguments.area_ratio
+    tree_structure, altitudes, area, parent_area, distances, objects, bg_var, bg_gain, parent_gamma - gamma,
+    gaussian_intensities, arguments.move_factor, arguments.G_fit, arguments.area_ratio, actual_mode
 )
 
 tree_of_segments, n_map_segments, unique_ids = segment.get_segmentation_map(

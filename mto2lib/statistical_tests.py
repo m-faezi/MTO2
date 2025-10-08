@@ -52,7 +52,8 @@ def move_up(
         gaussian,
         move_factor,
         G_fit,
-        area_ratio
+        area_ratio,
+        actual_mode
 ):
 
     main_branch = attribute_main_branch(tree)
@@ -67,7 +68,14 @@ def move_up(
     local_noise = np.sqrt(
         np.maximum(np.where(gain != 0, background_var + altitudes[tree.parent(object_indexes)], 0) / gain, 0)
     )
-    target_altitudes[object_indexes] = altitudes[object_indexes] + move_factor * local_noise
+
+    if actual_mode == 'const':
+
+        target_altitudes[object_indexes] = altitudes[object_indexes] + move_factor * local_noise
+
+    else:
+
+        target_altitudes[object_indexes] = altitudes[object_indexes] + move_factor * np.exp(local_noise)
 
     target_altitudes = target_altitudes[closest_object_ancestor]
 
