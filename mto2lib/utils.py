@@ -55,7 +55,14 @@ def weighted_centroid(tree, size, image):
     m[:, 1] = coord[:, 0]
     m[:, 2] = coord[:, 1]
     m = np.array(
-        [[image[int(i[1]), int(i[2])], i[1] * image[int(i[1]), int(i[2])], i[2] * image[int(i[1]), int(i[2])]] for i in m]
+        [
+            [
+                image[int(i[1]), int(i[2])],
+                i[1] * image[int(i[1]),
+                int(i[2])],
+                i[2] * image[int(i[1]), int(i[2])]
+             ] for i in m
+        ]
     )
     m = hg.accumulate_sequential(tree, m, hg.Accumulators.sum)
     m00 = m[:, 0]

@@ -81,6 +81,7 @@ def estimate_structural_background(image, return_map=False):
     image_minimum = np.nanmin(image)
 
     if image_minimum < 0:
+
         soft_bias = image_minimum
 
     bg_mean = np.nanmean(morph_background, axis=None)

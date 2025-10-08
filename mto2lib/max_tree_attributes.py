@@ -23,4 +23,5 @@ def compute_attributes(tree_structure, image, image_reduced, altitudes):
     gamma = hg.attribute_topological_height(tree_structure)
     parent_gamma = gamma[tree_structure.parents()]
 
-    return x, y, distances, mean, variance, area, parent_area, gaussian_intensities, volume, parent_altitude, gamma, parent_gamma
+    return (x, y, distances, mean, variance, area, parent_area, gaussian_intensities, volume, parent_altitude, gamma,
+            parent_gamma)
