@@ -10,6 +10,9 @@ def setup():
     arguments = make_parser().parse_args()
 
     arguments.time_stamp = datetime.now().isoformat()
+
+    print("Execution ID: " + arguments.time_stamp)
+
     results_dir = os.path.join("./results", arguments.time_stamp)
     os.makedirs(results_dir, exist_ok=True)
 
