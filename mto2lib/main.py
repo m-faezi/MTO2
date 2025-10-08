@@ -10,7 +10,8 @@ def setup():
     arguments = make_parser().parse_args()
 
     arguments.time_stamp = datetime.now().isoformat()
-    os.makedirs(arguments.time_stamp, exist_ok=True)
+    results_dir = os.path.join("./results", arguments.time_stamp)
+    os.makedirs(results_dir, exist_ok=True)
 
     crop_coords = None
 
@@ -22,13 +23,10 @@ def setup():
 
     if arguments.crop:
 
-        cropped_time_stamp = os.path.join(
-            arguments.time_stamp,
-            "processed_input.fits"
-        )
+        cropped_file = os.path.join(results_dir, "processed_input.fits")
 
-        io_utils.save_fits_with_header(image, header, cropped_time_stamp)
-        print(f"Saved cropped image to: {cropped_time_stamp}")
+        io_utils.save_fits_with_header(image, header, cropped_file)
+        print(f"Saved cropped image to: {cropped_file}")
 
-    return image, header, arguments
+    return image, header, arguments, results_dir
 

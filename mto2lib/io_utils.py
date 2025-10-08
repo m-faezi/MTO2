@@ -3,7 +3,7 @@ import json
 import os
 
 
-def save_parameters_metadata(arguments, actual_background_mode=None):
+def save_parameters_metadata(arguments, results_dir, actual_background_mode=None):
 
     background_mode_used = actual_background_mode if actual_background_mode else arguments.background_mode
 
@@ -23,7 +23,7 @@ def save_parameters_metadata(arguments, actual_background_mode=None):
         }
     }
 
-    metadata_file = os.path.join(arguments.time_stamp, "metadata.json")
+    metadata_file = os.path.join(results_dir, "metadata.json")
 
     with open(metadata_file, 'w') as f:
 

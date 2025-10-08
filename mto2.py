@@ -3,8 +3,9 @@ from mto2lib import (validators, preprocessing, utils, max_tree_attributes, stat
                      parameter_extraction, io_utils)
 import os
 
-image, header, arguments = mto2.setup()
-os.makedirs(arguments.time_stamp, exist_ok=True)
+image, header, arguments, results_dir = mto2.setup()
+
+os.makedirs(results_dir, exist_ok=True)
 
 image = validators.image_value_check(image)
 image_processed = preprocessing.smooth_filter(image, arguments.s_sigma)
@@ -13,23 +14,29 @@ requested_mode = arguments.background_mode
 actual_mode = requested_mode
 
 if arguments.background_mode == 'const':
+
     bg_mean, bg_var, bg_gain, bg_map, actual_mode = preprocessing.get_constant_background_map(image_processed)
+
 else:
+
     bg_mean, bg_var, bg_gain, bg_map, actual_mode = preprocessing.get_morphological_background_map(image_processed)
 
 if actual_mode != requested_mode:
+
     print(f"Note: Background mode fell back from '{requested_mode}' to '{actual_mode}'!")
 
-io_utils.save_parameters_metadata(arguments, actual_background_mode=actual_mode)
+io_utils.save_parameters_metadata(arguments, results_dir, actual_background_mode=actual_mode)
 
-bg_output = os.path.join(arguments.time_stamp, "background_map.fits")
+bg_output = os.path.join(results_dir, "background_map.fits")
 io_utils.save_fits_with_header(bg_map, header, bg_output)
+
 print(f"Saved {actual_mode} background to: {bg_output}")
 
 image_reduced = image_processed - bg_mean
 
-reduced_output = os.path.join(arguments.time_stamp, "reduced.fits")
+reduced_output = os.path.join(results_dir, "reduced.fits")
 io_utils.save_fits_with_header(image_reduced, header, reduced_output)
+
 print(f"Saved reduced image to: {reduced_output}")
 
 graph_structure, tree_structure, altitudes = utils.image_to_hierarchical_structure(image_reduced)
@@ -66,3 +73,4 @@ if arguments.par_out:
         unique_ids,
         arguments,
     )
+
