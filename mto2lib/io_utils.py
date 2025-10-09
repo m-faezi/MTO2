@@ -73,7 +73,7 @@ def finalize_execution_record(arguments, background_mode_used, results_dir):
 
 def save_execution_record(arguments, background_mode_used, status="Running"):
 
-    execution_csv_path = os.path.join("./results", "MTO2_executions.csv")
+    execution_csv_path = os.path.join("./results", "execution_tracker.csv")
 
     execution_record = {
         "execution_id": arguments.time_stamp,
