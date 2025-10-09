@@ -33,7 +33,7 @@ MTO2 is a photometric object (e.g., LSB galaxies) detection and extraction softw
 
 ## Processing Pipeline
 
-The procedure begins with **Gaussian smoothing**—regulated by the `s_sigma` parameter—to suppress small-scale noise. Next, a constant background is subtracted to improve source visibility. 
+The procedure begins with **Gaussian smoothing**—regulated by the `s_sigma` parameter—to suppress small-scale noise. Next, a constant or morphological background is subtracted to improve source visibility. 
 
 A **max-tree** is constructed from the background-subtracted image, and statistical test is applied to extract significant nodes based on their flux attributes.
 
