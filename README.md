@@ -1,9 +1,9 @@
 # MTO2 - Astronomical Source Detection Tool
 
-[![DOI](https://img.shields.io/badge/DOI-10.1515/mathm-blue.svg)](https://doi.org/10.1515/mathm-2016-0006)
-[![Higra](https://img.shields.io/badge/Powered%20by-Higra-green.svg)](https://higra.readthedocs.io/)
-[![Astropy](https://img.shields.io/badge/powered%20by-Astropy-orange.svg)](https://www.astropy.org/)
-<a href="https://github.com/m-faezi/MTO2/blob/main/CONTRIBUTING.md" alt="contributions welcome"><img src="https://img.shields.io/badge/contributions-welcome-brightgreen.svg"/></a>
+[![DOI](https://img.shields.io/badge/DOI-10.1515/mathm-C44536.svg)](https://doi.org/10.1515/mathm-2016-0006)
+[![Higra](https://img.shields.io/badge/Powered%20by-Higra-7B5E7B.svg)](https://higra.readthedocs.io/)
+[![Astropy](https://img.shields.io/badge/powered%20by-Astropy-4A7B9D.svg)](https://www.astropy.org/)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-5A4FCF.svg)](https://github.com/m-faezi/MTO2/blob/main/CONTRIBUTING.md)
 [![Py3.13](https://img.shields.io/badge/Py-3.13+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
 
 
