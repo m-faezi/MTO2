@@ -45,9 +45,6 @@ Arguments are available to refine the segmentation map:
 - **`area_ratio`**: Corrects deblending by evaluating area size relationships between nodes and their parents
 - **`G_fit`**: Gaussian-fit attribute filtering
 
-> [!NOTE]
-> See Mohammad H. Faezi, [2025](#4) for detailed description of the method.
-
 ##  Installation
 
 > [!TIP]
