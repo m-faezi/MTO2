@@ -4,8 +4,8 @@
 [![Higra](https://img.shields.io/badge/Powered%20by-Higra-green.svg)](https://higra.readthedocs.io/)
 [![Astropy](https://img.shields.io/badge/powered%20by-Astropy-orange.svg)](https://www.astropy.org/)
 <a href="https://github.com/m-faezi/MTO2/blob/main/CONTRIBUTING.md" alt="contributions welcome"><img src="https://img.shields.io/badge/contributions-welcome-brightgreen.svg"/></a>
+[![Py3.13](https://img.shields.io/badge/Py-3.13+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
 
-[![pythonV](https://img.shields.io/badge/Python-3.13.7+-blue?style=for-the-badge&logo=python&logoColor=blue)](https://www.python.org)
 
 MTO2 is a photometric object (e.g., LSB galaxies) detection and extraction software, representing and processing on max-tree (Salembier et al., [1998](#4)) data structure.
 
