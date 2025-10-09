@@ -10,14 +10,16 @@
 <!-- omit in toc -->
 ## Table of Contents
 
-- [Processing Pipeline](#processing-pipeline)
-- [Optional Post-Processing](#optional-post-processing)
+- [Processing pipeline](#processing-pipeline)
+- [Optional post-processing](#optional-post-processing)
 - [Installation](#installation)
   - [Dependencies](#dependencies)
-  - [Minimal Run](#minimal-run)
-  - [Tuned Run](#tuned-run)
+  - [Minimal run](#minimal-run)
+  - [Tuned run](#tuned-run)
+  - [Command line arguments](#command-line-arguments)
 - [Acknowledgments](#acknowledgments)
 - [Bibliography](#bibliography)
+- [License](#license)
 
 
 ## Processing Pipeline
