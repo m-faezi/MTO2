@@ -60,12 +60,12 @@ def save_parameters_metadata(arguments, results_dir, actual_background_mode=None
 
     register_signal_handlers()
 
-    atexit.register(finalize_execution_record, arguments, background_mode_used, results_dir)
+    atexit.register(finalize_execution_record, arguments, background_mode_used)
 
     return metadata_file
 
 
-def finalize_execution_record(arguments, background_mode_used, results_dir):
+def finalize_execution_record(arguments, background_mode_used):
 
     set_execution_status("Completed")
     save_execution_record(arguments, background_mode_used, _execution_status)
