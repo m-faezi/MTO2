@@ -3,7 +3,7 @@ import higra as hg
 import numpy as np
 
 
-def estimate_structural_background(image, return_map=False):
+def estimate_structural_background(image):
 
     graph_structure, tree_structure, altitudes = uts.image_to_hierarchical_structure(image)
 
@@ -88,12 +88,5 @@ def estimate_structural_background(image, return_map=False):
     bg_var = np.nanvar(morph_background, axis=None)
     gain = (bg_mean - np.abs(soft_bias)) / np.maximum(bg_var, np.finfo(np.float64).eps)
 
-    if return_map:
-
-        return morph_background_map, bg_var, gain, morph_background_map
-
-    else:
-
-        return bg_mean, bg_var, gain
-
+    return morph_background_map, bg_var, gain, morph_background_map
 

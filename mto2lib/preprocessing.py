@@ -17,7 +17,7 @@ def estimate_background(image):
 
 def get_constant_background_map(image):
 
-    result = cb.estimate_background(image, return_map=True)
+    result = cb.estimate_background(image)
 
     if result is not None:
 
@@ -30,7 +30,7 @@ def get_constant_background_map(image):
 
 def get_morphological_background_map(image):
 
-    m_result = mb.estimate_structural_background(image, return_map=True)
+    m_result = mb.estimate_structural_background(image)
 
     if m_result is not None:
 

@@ -9,7 +9,7 @@ rejection_rate_1 = 0
 rejection_rate_2 = 0
 
 
-def estimate_background(img, rejection_rate=0.05, return_map=False):
+def estimate_background(img, rejection_rate=0.05):
 
     global rejection_rate_1, rejection_rate_2
 
@@ -20,29 +20,15 @@ def estimate_background(img, rejection_rate=0.05, return_map=False):
 
     if tile_size == 0:
 
-        if return_map:
-
             bg_mean, bg_var, bg_gain, bg_map = mb.estimate_structural_background(img, return_map=True)
 
             return bg_mean, bg_var, bg_gain, bg_map, 'morph'
 
-        else:
-
-            bg_mean, bg_var, bg_gain = mb.estimate_structural_background(img, return_map=False)
-
-            return bg_mean, bg_var, bg_gain, 'morph'
-
     bg_mean, bg_var, gain = collect_info(img, tile_size)
 
-    if return_map:
+    background_map = np.full_like(img, bg_mean, dtype=np.float64)
 
-        background_map = np.full_like(img, bg_mean, dtype=np.float64)
-
-        return bg_mean, bg_var, gain, background_map, 'const'
-
-    else:
-
-        return bg_mean, bg_var, gain, 'const'
+    return bg_mean, bg_var, gain, background_map, 'const'
 
 
 def largest_flat_tile(img, tile_size_start=6, tile_size_min=4, tile_size_max=7):
