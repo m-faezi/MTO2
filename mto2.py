@@ -8,7 +8,8 @@ from mto2lib import (
     statistical_tests,
     segment,
     parameter_extraction,
-    io_utils
+    io_utils,
+    ml_utils,
 )
 
 import os

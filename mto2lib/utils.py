@@ -2,12 +2,7 @@ import os
 import numpy as np
 import higra as hg
 import pandas as pd
-from fcmeans import FCM
 from astropy.wcs import WCS
-from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
-from sklearn.cluster import MiniBatchKMeans
-from sklearn.preprocessing import StandardScaler
 
 
 def ensure_directory_exists(file_path):
@@ -129,23 +124,6 @@ def get_max_tree_attributes(tree_structure, altitudes, image):
     return area, volume, mean, variance, topological_height, distance_to_root_center
 
 
-def fuzz_bg_structure(bg_candidate_features, non_bool_unique_topological_height, altitudes):
-
-    masked_features = np.vstack(bg_candidate_features).T
-    scaler = StandardScaler()
-    scaled_features = scaler.fit_transform(masked_features)
-    pca = PCA(n_components=2)
-    reduced_features = pca.fit_transform(scaled_features)
-    fcm = FCM(n_clusters=2)
-    fcm.fit(reduced_features)
-    labels = fcm.predict(reduced_features)
-    labels_array = np.array(labels)
-    all_labels = np.zeros(altitudes.size)
-    all_labels[~non_bool_unique_topological_height] = labels_array
-
-    return all_labels
-
-
 def half_light_radius(image, coords):
 
     if len(coords) == 0:
@@ -192,38 +170,6 @@ def compute_r_fwhm(image, coords):
     r_fwhm = np.mean(np.sqrt((y[mask] - yc)**2 + (x[mask] - xc)**2))
 
     return r_fwhm
-
-
-def binary_cluster_bg_structure(bg_candidate_features, non_bool_unique_topological_height, altitudes):
-
-    masked_features = np.vstack(bg_candidate_features).T
-    scaler = StandardScaler()
-    scaled_features = scaler.fit_transform(masked_features)
-    pca = PCA(n_components=2)
-    reduced_features = pca.fit_transform(scaled_features)
-    kmeans = KMeans(n_clusters=2, random_state=42, n_init=10)
-    kmeans.fit(reduced_features)
-    labels = kmeans.labels_
-    all_labels = np.zeros(altitudes.size, dtype=int)
-    all_labels[~non_bool_unique_topological_height] = labels
-
-    return all_labels
-
-
-def binary_cluster_bg_structure_minibatch(bg_candidate_features, non_bool_unique_topological_height, altitudes):
-
-    masked_features = np.vstack(bg_candidate_features).T
-    scaler = StandardScaler()
-    scaled_features = scaler.fit_transform(masked_features)
-    pca = PCA(n_components=2)
-    reduced_features = pca.fit_transform(scaled_features)
-    kmeans = MiniBatchKMeans(n_clusters=2, random_state=42, batch_size=256, max_iter=100)
-    kmeans.fit(reduced_features)
-    labels = kmeans.labels_
-    all_labels = np.zeros(altitudes.size, dtype=int)
-    all_labels[~non_bool_unique_topological_height] = labels
-
-    return all_labels
 
 
 def mark_non_unique(array):

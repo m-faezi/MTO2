@@ -1,4 +1,5 @@
 import mto2lib.utils as uts
+import mto2lib.ml_utils as ml_uts
 import higra as hg
 import numpy as np
 
@@ -52,7 +53,7 @@ def estimate_structural_background(image):
 
     else:
 
-        all_labels = uts.binary_cluster_bg_structure_minibatch(
+        all_labels = ml_uts.binary_cluster_bg_structure_minibatch(
             filtered_features,
             non_bool_unique_topological_height,
             altitudes
