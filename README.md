@@ -14,6 +14,8 @@
 - [Optional Post-Processing](#optional-post-processing)
 - [Installation](#installation)
   - [Dependencies](#dependencies)
+  - [Minimal Run](#minimal-run)
+  - [Tuned Run](#tuned-run)
 - [Acknowledgments](#acknowledgments)
 - [Bibliography](#bibliography)
 
