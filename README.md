@@ -109,7 +109,7 @@ The following files are generated:
 - **Execution metadata**: `metadata.json` containing all execution parameters and background mode information
 - **Run tracking**: Centralized `execution_tracker.csv` recording all runs with their status
 
-The JSON metadata file provides complete information about each run, including background mode, argument setting, and software version for full reproducibility.
+The `metadata.json` file provides complete information about each run, including background mode, argument setting, and software version for full reproducibility.
 
 **`metadata.json` template:**
 
