@@ -56,11 +56,6 @@ pip install -r requirements.txt
 python mto2.py image.fits
 ```
 
-### Get help
-```bash
-python mto2.py -h
-```
-
 ### Tuned run
 ```bash
 python mto2.py image.fits

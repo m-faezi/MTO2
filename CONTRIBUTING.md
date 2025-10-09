@@ -14,6 +14,6 @@ You have a new feature to suggest or have found a bug? Please read this before y
 Please follow these steps to report a bug:
 1. Make sure that the bug lies in MTO2.
 2. Provide with useful information about your configuration/usage.
-3. Provide a data that produces the bug, or it will not be investigated.
+3. Provide a data that produces the bug, or it may not be investigated.
 4. Fix the bug, and let us know how you go (optional).
 
