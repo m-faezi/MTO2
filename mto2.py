@@ -9,7 +9,6 @@ from mto2lib import (
     segment,
     parameter_extraction,
     io_utils,
-    ml_utils,
 )
 
 import os

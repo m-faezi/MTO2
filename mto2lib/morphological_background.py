@@ -1,5 +1,6 @@
 import mto2lib.utils as uts
 import mto2lib.ml_utils as ml_uts
+import mto2lib.torch_utils as tc_uts
 import higra as hg
 import numpy as np
 
@@ -53,11 +54,23 @@ def estimate_structural_background(image):
 
     else:
 
-        all_labels = ml_uts.binary_cluster_bg_structure_minibatch(
-            filtered_features,
-            non_bool_unique_topological_height,
-            altitudes
-        )
+        try:
+
+            all_labels = ml_uts.binary_cluster_bg_structure_minibatch(
+                filtered_features,
+                non_bool_unique_topological_height,
+                altitudes
+            )
+
+        except Exception as e:
+
+            print("Switched to pyTorch")
+
+            all_labels = tc_uts.pytorch_kmeans_bg_structure(
+                filtered_features,
+                non_bool_unique_topological_height,
+                altitudes
+            )
 
         gaussian_intensities = uts.compute_gaussian_profile(
             mean,
