@@ -104,8 +104,8 @@ The following files are generated:
 - **Segmentation maps**: `segmentation_map.fits` and `segmentation_map.png`
 - **Source catalogs**: `parameters.csv` (when `--par_out` is enabled)
 - **Background and reduction maps**: `background_map.fits` and `reduces.fits`
-- **Execution metadata**: `metadata.json` containing all execution parameters and background mode information
-- **Run tracking**: Centralized `execution_tracker.csv` recording all runs with their status
+- **Run metadata**: `run_metadata.json` containing run arguments and background mode information
+- **Run tracking**: Centralized `run_tracker.csv` recording all runs with their status (more useful for automated pipelines)
 
 The `metadata.json` file provides complete information about each run, including background mode, argument setting, and software version for full reproducibility.
 
