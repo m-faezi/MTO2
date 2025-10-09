@@ -89,15 +89,15 @@ try:
             arguments,
         )
 
-    io_utils.set_execution_status("Completed")
+    io_utils.set_run_status("Completed")
 
-    print("MTO2 execution completed successfully!")
+    print("MTO2 run completed successfully!")
 
 except Exception as e:
 
-    io_utils.set_execution_status("Terminated")
+    io_utils.set_run_status("Terminated")
 
-    print(f"MTO2 execution terminated with error: {e}")
+    print(f"MTO2 run terminated with error: {e}")
 
     sys.exit(1)
 

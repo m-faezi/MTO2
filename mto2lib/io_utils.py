@@ -7,18 +7,18 @@ import signal
 import sys
 
 
-_execution_status = "Running"
+_run_status = "Running"
 
 
-def set_execution_status(status):
+def set_run_status(status):
 
-    global _execution_status
-    _execution_status = status
+    global _run_status
+    _run_status = status
 
 
 def signal_handler(signum, frame):
 
-    set_execution_status("Terminated")
+    set_run_status("Terminated")
     sys.exit(1)
 
 
@@ -48,7 +48,7 @@ def save_parameters_metadata(arguments, results_dir, actual_background_mode=None
         }
     }
 
-    metadata_file = os.path.join(results_dir, "metadata.json")
+    metadata_file = os.path.join(results_dir, "run_metadata.json")
 
     with open(metadata_file, 'w') as f:
 
@@ -56,27 +56,27 @@ def save_parameters_metadata(arguments, results_dir, actual_background_mode=None
 
     print(f"Saved argument metadata to: {metadata_file}")
 
-    save_execution_record(arguments, background_mode_used, "Running")
+    save_run_record(arguments, background_mode_used, "Running")
 
     register_signal_handlers()
 
-    atexit.register(finalize_execution_record, arguments, background_mode_used)
+    atexit.register(finalize_run_record, arguments, background_mode_used)
 
     return metadata_file
 
 
-def finalize_execution_record(arguments, background_mode_used):
+def finalize_run_record(arguments, background_mode_used):
 
-    set_execution_status("Completed")
-    save_execution_record(arguments, background_mode_used, _execution_status)
+    set_run_status("Completed")
+    save_run_record(arguments, background_mode_used, _run_status)
 
 
-def save_execution_record(arguments, background_mode_used, status="Running"):
+def save_run_record(arguments, background_mode_used, status="Running"):
 
-    execution_csv_path = os.path.join("./results", "execution_tracker.csv")
+    run_csv_path = os.path.join("./results", "run_tracker.csv")
 
-    execution_record = {
-        "execution_id": arguments.time_stamp,
+    run_record = {
+        "run_id": arguments.time_stamp,
         "file_name": os.path.splitext(os.path.basename(arguments.file_path))[0],
         "background_mode_requested": arguments.background_mode,
         "background_mode_used": background_mode_used,
@@ -88,44 +88,44 @@ def save_execution_record(arguments, background_mode_used, status="Running"):
         "status": status,
     }
 
-    if os.path.exists(execution_csv_path):
+    if os.path.exists(run_csv_path):
 
         try:
-            existing_df = pd.read_csv(execution_csv_path)
+            existing_df = pd.read_csv(run_csv_path)
 
-            if arguments.time_stamp in existing_df['execution_id'].values:
+            if arguments.time_stamp in existing_df['run_id'].values:
 
                 existing_df.loc[
-                    existing_df['execution_id'] == arguments.time_stamp, list(execution_record.keys())] = list(
-                    execution_record.values())
+                    existing_df['run_id'] == arguments.time_stamp, list(run_record.keys())] = list(
+                    run_record.values())
                 updated_df = existing_df
 
             else:
 
-                new_df = pd.DataFrame([execution_record])
+                new_df = pd.DataFrame([run_record])
                 updated_df = pd.concat([existing_df, new_df], ignore_index=True)
 
         except Exception as e:
 
-            print(f"Warning: Could not read existing execution CSV. Creating new one. Error: {e}")
+            print(f"Warning: Could not read existing run CSV. Creating new one. Error: {e}")
 
-            updated_df = pd.DataFrame([execution_record])
+            updated_df = pd.DataFrame([run_record])
 
     else:
 
-        updated_df = pd.DataFrame([execution_record])
+        updated_df = pd.DataFrame([run_record])
 
-    os.makedirs(os.path.dirname(execution_csv_path), exist_ok=True)
+    os.makedirs(os.path.dirname(run_csv_path), exist_ok=True)
 
-    updated_df.to_csv(execution_csv_path, index=False)
+    updated_df.to_csv(run_csv_path, index=False)
 
     if status == "Running":
 
-        print(f"Execution record created in: {execution_csv_path}")
+        print(f"Run record created in: {run_csv_path}")
 
     else:
 
-        print(f"Execution marked as {status} in: {execution_csv_path}")
+        print(f"Run marked as {status} in: {run_csv_path}")
 
 
 def read_image_data(file_path, crop_coords=None):
