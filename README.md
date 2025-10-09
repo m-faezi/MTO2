@@ -7,7 +7,7 @@
 [![Py3.13](https://img.shields.io/badge/Py-3.13+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
 
 
-MTO2 is a photometric object (e.g., LSB galaxies) detection and extraction software, representing and processing on max-tree (Salembier et al., [1998](#4)) data structure.
+MTO2 is a photometric object (e.g., LSB galaxies) detection and extraction software, representing and processing on max-tree ([Salembier et al.](#4)) data structure.
 
 - **Background estimation**: Robust constant and/or morphological background subtraction(s).
 - **Detection**: Detects faint complex emissions; statistically significant.
@@ -108,7 +108,7 @@ This software was developed for **Faint Object Detection in Multidimensional Ast
 
 MTO2 is developed using the [Higra](https://github.com/higra/Higra) Python package, and builds on their example implementation of MTO: [Astronomical object detection with the Max-Tree - MMTA 2016](https://higra.readthedocs.io/en/stable/notebooks.html#illustrative-applications-from-scientific-papers).
 
-This implementation draws inspiration from [Caroline Haigh's work ](https://github.com/CarolineHaigh/mtobjects)(Teeninga et al., [2016](#4)).
+This implementation draws inspiration from [Caroline Haigh's work ](https://github.com/CarolineHaigh/mtobjects)([Teeninga et al.](#4)).
 
 ## Bibliography
 
