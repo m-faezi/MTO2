@@ -101,6 +101,40 @@ Get started with a demo in Google Colab:
 ### Output formatting
 
 Output files (segmentation maps and catalogs) are automatically timestamped using the iso format to prevent overwriting, provide clear analysis tracking and reproducing the experiments.
+The following files are generated:
+
+- **Segmentation maps**: `segmentation_map.fits` and `segmentation_map.png`
+- **Source catalogs**: `parameters.csv` (when `--par_out` is enabled)
+- **Background and reduction maps**: `background_map.fits` and `reduces.fits`
+- **Execution metadata**: `metadata.json` containing all execution parameters and background mode information
+- **Run tracking**: Centralized `execution_tracker.csv` recording all runs with their status
+
+The JSON metadata file provides complete information about each run, including background mode, argument setting, and software version for full reproducibility.
+
+**`metadata.json` template:**
+
+```json
+{
+  "software": "MTO2",
+  "version": "1.0.0",
+  "time_stamp": "2025-10-09T12:14:45.580277",
+  "file name": "Your-Data-Name",
+  "arguments": {
+    "background_mode_requested": "morph",
+    "background_mode_used": "morph",
+    "move_factor": 3.0,
+    "area_ratio": 0.9,
+    "s_sigma": 2,
+    "G_fit": true,
+    "crop": [
+      3100,
+      3600,
+      4200,
+      4800
+    ]
+  }
+}
+```
 
 ## Acknowledgments
 
