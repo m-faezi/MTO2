@@ -20,7 +20,7 @@ def estimate_background(img, rejection_rate=0.05):
 
     if tile_size == 0:
 
-            bg_mean, bg_var, bg_gain, bg_map = mb.estimate_structural_background(img, return_map=True)
+            bg_mean, bg_var, bg_gain, bg_map = mb.estimate_structural_background(img)
 
             return bg_mean, bg_var, bg_gain, bg_map, 'morph'
 

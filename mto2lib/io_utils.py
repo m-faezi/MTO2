@@ -1,6 +1,31 @@
 from astropy.io import fits
 import json
 import os
+import pandas as pd
+import atexit
+import signal
+import sys
+
+
+_execution_status = "Running"
+
+
+def set_execution_status(status):
+
+    global _execution_status
+    _execution_status = status
+
+
+def signal_handler(signum, frame):
+
+    set_execution_status("Terminated")
+    sys.exit(1)
+
+
+def register_signal_handlers():
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
 
 def save_parameters_metadata(arguments, results_dir, actual_background_mode=None):
@@ -31,7 +56,76 @@ def save_parameters_metadata(arguments, results_dir, actual_background_mode=None
 
     print(f"Saved argument metadata to: {metadata_file}")
 
+    save_execution_record(arguments, background_mode_used, "Running")
+
+    register_signal_handlers()
+
+    atexit.register(finalize_execution_record, arguments, background_mode_used, results_dir)
+
     return metadata_file
+
+
+def finalize_execution_record(arguments, background_mode_used, results_dir):
+
+    set_execution_status("Completed")
+    save_execution_record(arguments, background_mode_used, _execution_status)
+
+
+def save_execution_record(arguments, background_mode_used, status="Running"):
+
+    execution_csv_path = os.path.join("./results", "MTO2_executions.csv")
+
+    execution_record = {
+        "execution_id": arguments.time_stamp,
+        "file_name": os.path.splitext(os.path.basename(arguments.file_path))[0],
+        "background_mode_requested": arguments.background_mode,
+        "background_mode_used": background_mode_used,
+        "move_factor": arguments.move_factor,
+        "area_ratio": arguments.area_ratio,
+        "s_sigma": arguments.s_sigma,
+        "G_fit": arguments.G_fit,
+        "crop": str(arguments.crop) if arguments.crop else "None",
+        "status": status,
+    }
+
+    if os.path.exists(execution_csv_path):
+
+        try:
+            existing_df = pd.read_csv(execution_csv_path)
+
+            if arguments.time_stamp in existing_df['execution_id'].values:
+
+                existing_df.loc[
+                    existing_df['execution_id'] == arguments.time_stamp, list(execution_record.keys())] = list(
+                    execution_record.values())
+                updated_df = existing_df
+
+            else:
+
+                new_df = pd.DataFrame([execution_record])
+                updated_df = pd.concat([existing_df, new_df], ignore_index=True)
+
+        except Exception as e:
+
+            print(f"Warning: Could not read existing execution CSV. Creating new one. Error: {e}")
+
+            updated_df = pd.DataFrame([execution_record])
+
+    else:
+
+        updated_df = pd.DataFrame([execution_record])
+
+    os.makedirs(os.path.dirname(execution_csv_path), exist_ok=True)
+
+    updated_df.to_csv(execution_csv_path, index=False)
+
+    if status == "Running":
+
+        print(f"Execution record created in: {execution_csv_path}")
+
+    else:
+
+        print(f"Execution marked as {status} in: {execution_csv_path}")
 
 
 def read_image_data(file_path, crop_coords=None):

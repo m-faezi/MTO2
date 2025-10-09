@@ -1,76 +1,103 @@
 import mto2lib.main as mto2
-from mto2lib import (validators, preprocessing, utils, max_tree_attributes, statistical_tests, segment,
-                     parameter_extraction, io_utils)
+
+from mto2lib import (
+    validators,
+    preprocessing,
+    utils,
+    max_tree_attributes,
+    statistical_tests,
+    segment,
+    parameter_extraction,
+    io_utils
+)
+
 import os
+import sys
 
-image, header, arguments, results_dir = mto2.setup()
 
-os.makedirs(results_dir, exist_ok=True)
+try:
 
-image = validators.image_value_check(image)
-image_processed = preprocessing.smooth_filter(image, arguments.s_sigma)
+    image, header, arguments, results_dir = mto2.setup()
 
-requested_mode = arguments.background_mode
-actual_mode = requested_mode
+    os.makedirs(results_dir, exist_ok=True)
 
-if arguments.background_mode == 'const':
+    image = validators.image_value_check(image)
+    image_processed = preprocessing.smooth_filter(image, arguments.s_sigma)
 
-    bg_mean, bg_var, bg_gain, bg_map, actual_mode = preprocessing.get_constant_background_map(image_processed)
+    requested_mode = arguments.background_mode
+    actual_mode = requested_mode
 
-else:
+    if arguments.background_mode == 'const':
 
-    bg_mean, bg_var, bg_gain, bg_map, actual_mode = preprocessing.get_morphological_background_map(image_processed)
+        bg_mean, bg_var, bg_gain, bg_map, actual_mode = preprocessing.get_constant_background_map(image_processed)
 
-if actual_mode != requested_mode:
+    else:
 
-    print(f"Note: Background mode fell back from '{requested_mode}' to '{actual_mode}'!")
+        bg_mean, bg_var, bg_gain, bg_map, actual_mode = preprocessing.get_morphological_background_map(image_processed)
 
-io_utils.save_parameters_metadata(arguments, results_dir, actual_background_mode=actual_mode)
+    if actual_mode != requested_mode:
 
-bg_output = os.path.join(results_dir, "background_map.fits")
-io_utils.save_fits_with_header(bg_map, header, bg_output)
+        print(f"Note: Background mode fell back from '{requested_mode}' to '{actual_mode}'!")
 
-print(f"Saved {actual_mode} background to: {bg_output}")
+    io_utils.save_parameters_metadata(arguments, results_dir, actual_background_mode=actual_mode)
 
-image_reduced = image_processed - bg_mean
+    bg_output = os.path.join(results_dir, "background_map.fits")
+    io_utils.save_fits_with_header(bg_map, header, bg_output)
 
-reduced_output = os.path.join(results_dir, "reduced.fits")
-io_utils.save_fits_with_header(image_reduced, header, reduced_output)
+    print(f"Saved {actual_mode} background to: {bg_output}")
 
-print(f"Saved reduced image to: {reduced_output}")
+    image_reduced = image_processed - bg_mean
 
-graph_structure, tree_structure, altitudes = utils.image_to_hierarchical_structure(image_reduced)
+    reduced_output = os.path.join(results_dir, "reduced.fits")
+    io_utils.save_fits_with_header(image_reduced, header, reduced_output)
 
-x, y, distances, mean, variance, area, parent_area, gaussian_intensities, volume, parent_altitude, gamma, parent_gamma \
-    = max_tree_attributes.compute_attributes(tree_structure, image, image_reduced, altitudes)
+    print(f"Saved reduced image to: {reduced_output}")
 
-significant_nodes = statistical_tests.attribute_statistical_significance(
-    tree_structure, altitudes, volume, area, bg_var, bg_gain
-)
+    graph_structure, tree_structure, altitudes = utils.image_to_hierarchical_structure(image_reduced)
 
-objects = statistical_tests.select_objects(tree_structure, significant_nodes)
+    (x, y, distances, mean, variance, area, parent_area, gaussian_intensities, volume, parent_altitude, gamma,
+     parent_gamma) = max_tree_attributes.compute_attributes(tree_structure, image, image_reduced, altitudes)
 
-modified_isophote = statistical_tests.move_up(
-    tree_structure, altitudes, area, parent_area, distances, objects, bg_var, bg_gain, parent_gamma - gamma,
-    gaussian_intensities, arguments.move_factor, arguments.G_fit, arguments.area_ratio, actual_mode
-)
-
-tree_of_segments, n_map_segments, unique_ids = segment.get_segmentation_map(
-    tree_structure,
-    modified_isophote,
-    header,
-    arguments
-)
-
-if arguments.par_out:
-    parameter_extraction.extract_parameters(
-        image,
-        header,
-        tree_of_segments,
-        n_map_segments,
-        parent_altitude,
-        area,
-        unique_ids,
-        arguments,
+    significant_nodes = statistical_tests.attribute_statistical_significance(
+        tree_structure, altitudes, volume, area, bg_var, bg_gain
     )
+
+    objects = statistical_tests.select_objects(tree_structure, significant_nodes)
+
+    modified_isophote = statistical_tests.move_up(
+        tree_structure, altitudes, area, parent_area, distances, objects, bg_var, bg_gain, parent_gamma - gamma,
+        gaussian_intensities, arguments.move_factor, arguments.G_fit, arguments.area_ratio, actual_mode
+    )
+
+    tree_of_segments, n_map_segments, unique_ids = segment.get_segmentation_map(
+        tree_structure,
+        modified_isophote,
+        header,
+        arguments
+    )
+
+    if arguments.par_out:
+
+        parameter_extraction.extract_parameters(
+            image,
+            header,
+            tree_of_segments,
+            n_map_segments,
+            parent_altitude,
+            area,
+            unique_ids,
+            arguments,
+        )
+
+    io_utils.set_execution_status("Completed")
+
+    print("MTO2 execution completed successfully!")
+
+except Exception as e:
+
+    io_utils.set_execution_status("Terminated")
+
+    print(f"MTO2 execution terminated with error: {e}")
+
+    sys.exit(1)
 
