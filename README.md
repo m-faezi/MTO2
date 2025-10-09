@@ -52,7 +52,6 @@ Arguments are available to refine the segmentation map:
 > It is recommended to use an isolated Python virtual environment to avoid dependency conflicts. The simplest way is to use Python's built-in [venv](https://docs.python.org/3/library/venv.html). If you already have another virtual environment active, be sure to deactivate it first.
 
 
-
 ### Dependencies
 
 The dependencies are listed in the [requirements.txt](requirements.txt) file.
