@@ -7,6 +7,14 @@
 
 [![pythonV](https://img.shields.io/badge/Python-3.13.7+-blue?style=for-the-badge&logo=python&logoColor=blue)](https://www.python.org)
 
+MTO2 is a photometric object (e.g., LSB galaxies) detection and extraction software, representing and processing on max-tree (Salembier et al., [1998](#4)) data structure.
+
+- **Background estimation**: Robust constant and/or morphological background subtraction(s).
+- **Detection**: Detects faint complex emissions; statistically significant.
+- **Deblending**: Max-tree spatial attribute-based accurate deblending.
+- **Cataloging**: Precise parameter extraction.
+
+
 <!-- omit in toc -->
 ## Table of Contents
 
@@ -17,6 +25,7 @@
   - [Minimal run](#minimal-run)
   - [Tuned run](#tuned-run)
   - [Command line arguments](#command-line-arguments)
+- [Output formatting](#output-formatting)
 - [Acknowledgments](#acknowledgments)
 - [Bibliography](#bibliography)
 - [License](#license)
@@ -89,6 +98,9 @@ Get started with a demo in Google Colab:
 | `--crop`                 | Crops the image                                  | int[4]    | x_min  y_min  x_max  y_max | image domain |
 | `-h`, `--help`           | Show the help message and exit                   | flag      | -                          | -            |
 
+### Output formatting
+
+Output files (segmentation maps and catalogs) are automatically timestamped using the iso format to prevent overwriting, provide clear analysis tracking and reproducing the experiments.
 
 ## Acknowledgments
 
@@ -96,7 +108,7 @@ This software was developed for **Faint Object Detection in Multidimensional Ast
 
 MTO2 is developed using the [Higra](https://github.com/higra/Higra) Python package, and builds on their example implementation of MTO: [Astronomical object detection with the Max-Tree - MMTA 2016](https://higra.readthedocs.io/en/stable/notebooks.html#illustrative-applications-from-scientific-papers).
 
-This implementation draws inspiration from [Caroline Haigh's work](https://github.com/CarolineHaigh/mtobjects).
+This implementation draws inspiration from [Caroline Haigh's work ](https://github.com/CarolineHaigh/mtobjects)(Teeninga et al., [2016](#4)).
 
 ## Bibliography
 
