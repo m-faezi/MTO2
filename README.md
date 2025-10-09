@@ -78,8 +78,6 @@ Get started with a demo in Google Colab:
 
 ### Command line arguments
 
-<div style="font-size: 0.7em;">
-
 | Option                   | Description                                      | Type      | Default                    | Range/Values |
 |--------------------------|--------------------------------------------------|-----------|----------------------------|--------------|
 | `--s_sigma`              | Standard deviation for smoothing kernel          | float     | 2.00                       | ≥ 0          |
@@ -91,7 +89,6 @@ Get started with a demo in Google Colab:
 | `--crop`                 | Crops the image                                  | int[4]    | x_min  y_min  x_max  y_max | image domain |
 | `-h`, `--help`           | Show the help message and exit                   | flag      | -                          | -            |
 
-</div>
 
 ## Acknowledgments
 
