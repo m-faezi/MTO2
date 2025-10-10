@@ -33,14 +33,43 @@ def estimate_structural_background(image):
 
     filtered_features = [feature for feature in features if not np.isnan(feature).any()]
 
-    if not filtered_features:
+    gaussian_intensities = uts.compute_gaussian_profile(
+        mean,
+        variance,
+        distances,
+        altitudes / area
+    )
 
-        gaussian_intensities = uts.compute_gaussian_profile(
-            mean,
-            variance,
-            distances,
-            altitudes / area
+    try:
+
+        try:
+
+            all_labels = tc_uts.pytorch_kmeans_bg_structure(
+                filtered_features,
+                non_bool_unique_topological_height,
+                altitudes
+            )
+
+        except Exception as e:
+
+            all_labels = ml_uts.binary_cluster_bg_structure_minibatch(
+                filtered_features,
+                non_bool_unique_topological_height,
+                altitudes
+            )
+
+        tree_non_source, n_map_non_source = hg.simplify_tree(
+            tree_structure,
+            np.logical_or(
+                all_labels != all_labels[tree_structure.root()],
+                altitudes / area >= gaussian_intensities
+            )
         )
+
+        morph_background = hg.reconstruct_leaf_data(tree_non_source, altitudes[n_map_non_source])
+
+
+    except Exception as e:
 
         tree_non_source, n_map_non_source = hg.simplify_tree(
             tree_structure,
@@ -52,42 +81,7 @@ def estimate_structural_background(image):
 
         morph_background = hg.reconstruct_leaf_data(tree_non_source, altitudes[n_map_non_source])
 
-    else:
 
-        try:
-
-            all_labels = ml_uts.binary_cluster_bg_structure_minibatch(
-                filtered_features,
-                non_bool_unique_topological_height,
-                altitudes
-            )
-
-        except Exception as e:
-
-            print("Switched to pyTorch")
-
-            all_labels = tc_uts.pytorch_kmeans_bg_structure(
-                filtered_features,
-                non_bool_unique_topological_height,
-                altitudes
-            )
-
-        gaussian_intensities = uts.compute_gaussian_profile(
-            mean,
-            variance,
-            distances,
-            altitudes/area
-        )
-
-        tree_non_source, n_map_non_source = hg.simplify_tree(
-            tree_structure,
-            np.logical_or(
-                all_labels != all_labels[tree_structure.root()],
-                altitudes / area >= gaussian_intensities
-            )
-        )
-
-        morph_background = hg.reconstruct_leaf_data(tree_non_source, altitudes[n_map_non_source])
 
     morph_background_map = np.full_like(image, morph_background, dtype=np.float64)
 
