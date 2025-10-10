@@ -1,5 +1,5 @@
 from mto2lib.utils import base_utils as uts
-import mto2lib.ml_utils as ml_uts
+from mto2lib.utils import ml_utils as ml_uts
 import mto2lib.torch_utils as tc_uts
 import higra as hg
 import numpy as np
