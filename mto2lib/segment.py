@@ -1,7 +1,7 @@
 import higra as hg
 import numpy as np
 from PIL import Image, ImageOps
-import mto2lib.io_utils as io_uts
+from mto2lib.utils import io_utils as io_uts
 import os
 
 

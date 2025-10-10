@@ -1,14 +1,13 @@
 import mto2lib.main as mto2
+from mto2lib.utils import base_utils, io_utils
 
 from mto2lib import (
     validators,
     preprocessing,
-    utils,
     max_tree_attributes,
     statistical_tests,
     segment,
     parameter_extraction,
-    io_utils,
 )
 
 import os
@@ -51,7 +50,7 @@ try:
 
     print(f"Saved reduced image to: {reduced_output}")
 
-    graph_structure, tree_structure, altitudes = utils.image_to_hierarchical_structure(image_reduced)
+    graph_structure, tree_structure, altitudes = base_utils.image_to_hierarchical_structure(image_reduced)
 
     (x, y, distances, mean, variance, area, parent_area, gaussian_intensities, volume, parent_altitude, gamma,
      parent_gamma) = max_tree_attributes.compute_attributes(tree_structure, image, image_reduced, altitudes)

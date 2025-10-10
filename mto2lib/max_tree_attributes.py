@@ -1,4 +1,4 @@
-import mto2lib.utils as uts
+from mto2lib.utils import base_utils as uts
 import numpy as np
 import higra as hg
 
