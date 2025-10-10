@@ -8,7 +8,7 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)](https://pytorch.org/)
 
 
-MTO2 is a photometric object (e.g., LSB galaxies) detection and extraction software, representing and processing on max-tree ([Salembier et al.](#4)) data structure.
+MTO2 is a photometric object (e.g., [LSB galaxies](https://en.wikipedia.org/wiki/Low_surface_brightness_galaxy)) detection and extraction software, representing and processing on max-tree ([Salembier et al.](#4)) data structure.
 
 - **Background estimation**: Robust constant and/or morphological background subtraction(s).
 - **Detection**: Detects faint complex emissions; statistically significant.
