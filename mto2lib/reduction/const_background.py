@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import stats
-import mto2lib.morphological_background as mb
+from mto2lib.reduction import morphological_background as mb
 
 
 _reject_tile = False

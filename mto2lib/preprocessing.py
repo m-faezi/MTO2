@@ -1,6 +1,6 @@
 from scipy.ndimage import gaussian_filter
-import mto2lib.morphological_background as mb
-import mto2lib.const_background as cb
+from mto2lib.reduction import morphological_background as mb
+from mto2lib.reduction import const_background as cb
 
 
 def smooth_filter(image, sigma):
