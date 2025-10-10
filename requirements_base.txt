@@ -9,5 +9,4 @@ scipy==1.16.2
 pillow==11.3.0
 pandas==2.2.2
 fuzzy-c-means==0.0.6
-torch==2.5.1
 

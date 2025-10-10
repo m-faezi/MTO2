@@ -54,12 +54,13 @@ Arguments are available to refine the segmentation map:
 
 ### Dependencies
 
-The dependencies are listed in the [requirements.txt](requirements.txt) file.
+The dependencies are listed in the [requirements_base.txt](requirements_base.txt) file.
 
 ```bash
 python3 -m venv ./venvs/mto2
 source ./venvs/mto2/bin/activate
-pip install -r requirements.txt
+pip install -r requirements_base.txt
+pip install -r requirements_torch.txt || pip install -r requirements_torch_fallback.txt
 ```
 ### Minimal run
 ```bash
