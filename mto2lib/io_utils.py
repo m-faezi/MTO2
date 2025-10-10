@@ -36,7 +36,7 @@ def save_parameters_metadata(arguments, results_dir, actual_background_mode=None
         "software": "MTO2",
         "version": "1.0.0",
         "time_stamp": arguments.time_stamp,
-        "file name": os.path.splitext(os.path.basename(arguments.file_path))[0],
+        "file_name": os.path.splitext(os.path.basename(arguments.file_path))[0],
         "arguments": {
             "background_mode_requested": arguments.background_mode,
             "background_mode_used": background_mode_used,
