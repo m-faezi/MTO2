@@ -116,7 +116,7 @@ The `run_metadata.json` file provides complete information about each run, inclu
   "software": "MTO2",
   "version": "1.0.0",
   "time_stamp": "2025-10-09T12:14:45.580277",
-  "file name": "Your-Data-Name",
+  "file_name": "Your-Data-Name",
   "arguments": {
     "background_mode_requested": "morph",
     "background_mode_used": "morph",
