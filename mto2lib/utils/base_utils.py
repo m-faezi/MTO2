@@ -5,13 +5,6 @@ import pandas as pd
 from astropy.wcs import WCS
 
 
-def ensure_directory_exists(file_path):
-
-    directory = os.path.dirname(file_path)
-    if directory and not os.path.exists(directory):
-        os.makedirs(directory, exist_ok=True)
-
-
 def image_to_hierarchical_structure(image):
     
     graph_structure = hg.get_8_adjacency_graph(image.shape)
