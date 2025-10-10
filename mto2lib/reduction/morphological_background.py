@@ -44,7 +44,7 @@ def estimate_structural_background(image):
 
         try:
 
-            all_labels = tc_uts.pytorch_kmeans_bg_structure(
+            all_labels = tc_uts.pytorch_fuzzy_c_means(
                 filtered_features,
                 non_bool_unique_topological_height,
                 altitudes
@@ -58,9 +58,24 @@ def estimate_structural_background(image):
                 altitudes
             )
 
+        unique_labels = np.unique(all_labels)
+
+        if len(unique_labels) == 2:
+
+            area_label_0 = np.mean(area[all_labels == unique_labels[0]])
+            area_label_1 = np.mean(area[all_labels == unique_labels[1]])
+
+            if area_label_0 > area_label_1:
+
+                keep_label = unique_labels[0]
+
+            else:
+
+                keep_label = unique_labels[1]
+
         tree_non_source, n_map_non_source = hg.simplify_tree(
             tree_structure,
-            all_labels != all_labels[tree_structure.root()],
+            all_labels != keep_label,
         )
 
         morph_background = hg.reconstruct_leaf_data(tree_non_source, altitudes[n_map_non_source])
