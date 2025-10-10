@@ -1,12 +1,12 @@
 
 
-higra==0.6.12
-numpy==2.0.2
-astropy==7.1.0
-scikit-image==0.25.2
-scikit-learn==1.7.2
-scipy==1.16.2
-pillow==11.3.0
-pandas==2.2.2
-fuzzy-c-means==0.0.6
+higra>=0.6.12
+numpy>=2.0.2
+astropy>=7.1.0
+scikit-image>=0.25.2
+scikit-learn>=1.7.2
+scipy>=1.16.2
+pillow>=11.3.0
+pandas>=2.2.3
+fuzzy-c-means>=0.0.6
 
