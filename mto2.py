@@ -19,8 +19,6 @@ try:
 
     image, header, arguments, results_dir = mto2.setup()
 
-    os.makedirs(results_dir, exist_ok=True)
-
     image = validators.image_value_check(image)
     image_processed = preprocessing.smooth_filter(image, arguments.s_sigma)
 
