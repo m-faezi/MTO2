@@ -8,13 +8,6 @@ def smooth_filter(image, sigma):
     return gaussian_filter(image, sigma)
 
 
-def estimate_background(image):
-
-    bg_mean, bg_var, bg_gain, bg_type = cb.estimate_background(image, return_map=False)
-
-    return bg_mean, bg_var, bg_gain
-
-
 def get_constant_background_map(image):
 
     result = cb.estimate_background(image)
