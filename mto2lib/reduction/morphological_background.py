@@ -113,5 +113,5 @@ def estimate_structural_background(image):
     bg_var = np.nanvar(morph_background, axis=None)
     gain = (bg_mean - np.abs(soft_bias)) / np.maximum(bg_var, np.finfo(np.float64).eps)
 
-    return morph_background_map, bg_var, gain, morph_background_map
+    return bg_mean, bg_var, gain, morph_background_map
 
