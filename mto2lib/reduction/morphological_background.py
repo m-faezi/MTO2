@@ -68,14 +68,19 @@ def estimate_structural_background(image):
             if area_label_0 > area_label_1:
 
                 keep_label = unique_labels[0]
+                mean_area = area_label_0
 
             else:
 
                 keep_label = unique_labels[1]
+                mean_area = area_label_1
 
         tree_non_source, n_map_non_source = hg.simplify_tree(
             tree_structure,
-            all_labels != keep_label,
+            np.logical_and(
+                all_labels != keep_label,
+                area < mean_area
+            )
         )
 
         morph_background = hg.reconstruct_leaf_data(tree_non_source, altitudes[n_map_non_source])
