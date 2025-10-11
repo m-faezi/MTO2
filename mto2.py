@@ -22,15 +22,18 @@ try:
     image_processed = preprocessing.smooth_filter(image, arguments.s_sigma)
 
     requested_mode = arguments.background_mode
-    actual_mode = requested_mode
+    actual_mode = None
 
     if arguments.background_mode == 'const':
 
-        bg_mean, bg_var, bg_gain, bg_map, actual_mode = preprocessing.get_constant_background_map(image_processed)
+        try:
 
-    else:
+            bg_mean, bg_var, bg_gain, bg_map, actual_mode = preprocessing.get_constant_background_map(image_processed)
 
-        bg_mean, bg_var, bg_gain, bg_map, actual_mode = preprocessing.get_morphological_background_map(image_processed)
+        except Exception as e:
+
+            actual_mode = 'morph'
+            bg_mean, bg_var, bg_gain, bg_map = preprocessing.get_morphological_background_map(image_processed)
 
     if actual_mode != requested_mode:
 

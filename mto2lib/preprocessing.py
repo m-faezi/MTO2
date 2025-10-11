@@ -10,26 +10,11 @@ def smooth_filter(image, sigma):
 
 def get_constant_background_map(image):
 
-    result = cb.estimate_background(image)
-
-    if result is not None:
-
-        bg_mean, bg_var, bg_gain, bg_map, bg_type = result
-
-        return bg_mean, bg_var, bg_gain, bg_map, bg_type
-
-    return None, None, None, None, None
+    return cb.estimate_background(image)
 
 
 def get_morphological_background_map(image):
 
-    m_result = mb.estimate_structural_background(image)
+    return mb.estimate_structural_background(image)
 
-    if m_result is not None:
-
-        m_bg_mean, m_bg_var, m_bg_gain, m_bg_map = m_result
-
-        return m_bg_mean, m_bg_var, m_bg_gain, m_bg_map, 'morph'
-
-    return None, None, None, None, None
 
