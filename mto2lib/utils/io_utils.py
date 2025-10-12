@@ -73,7 +73,7 @@ def finalize_run_record(arguments, background_mode_used):
 
 def save_run_record(arguments, background_mode_used, status="Running"):
 
-    run_csv_path = os.path.join("./results", "run_tracker.csv")
+    run_csv_path = os.path.join("./results", "your_runs.csv")
 
     run_record = {
         "run_id": arguments.time_stamp,
