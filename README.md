@@ -1,9 +1,9 @@
 # MTO<span style="color:#FF0000">2</span> - <span  style="color:#666666">Astronomical Source Detection Tool</span>
 
 [![DOI](https://img.shields.io/badge/DOI-10.1515/mathm-8A2BE2.svg)](https://doi.org/10.1515/mathm-2016-0006)
-[![Higra](https://img.shields.io/badge/Powered%20by-Higra-A20F43.svg)](https://higra.readthedocs.io/)
+[![Higra](https://img.shields.io/badge/Powered%20by-Higra-ffff00.svg)](https://higra.readthedocs.io/)
 [![Astropy](https://img.shields.io/badge/powered%20by-Astropy-D84315.svg)](https://www.astropy.org/)
-[![contributions welcome](https://img.shields.io/badge/contributions-welcome-388E3C.svg)](https://github.com/m-faezi/MTO2/blob/main/CONTRIBUTING.md)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-66ff00.svg)](https://github.com/m-faezi/MTO2/blob/main/CONTRIBUTING.md)
 [![Py3.13](https://img.shields.io/badge/Py-3.13+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)](https://pytorch.org/)
 
