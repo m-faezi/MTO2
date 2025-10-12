@@ -120,9 +120,9 @@ The `run_metadata.json` file provides complete information about each run, inclu
   "arguments": {
     "background_mode_requested": "morph",
     "background_mode_used": "morph",
-    "move_factor": 3.0,
-    "area_ratio": 0.9,
-    "s_sigma": 2,
+    "move_factor": 0.1,
+    "area_ratio": 0.91,
+    "s_sigma": 1.6,
     "G_fit": true,
     "crop": [
       3100,
