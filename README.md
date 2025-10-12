@@ -105,7 +105,7 @@ The following files are generated:
 - **Source catalogs**: `parameters.csv` (when `--par_out` is enabled)
 - **Background and reduction maps**: `background_map.fits` and `reduces.fits`
 - **Run metadata**: `run_metadata.json` containing run arguments and background mode information
-- **Run tracking**: Centralized `run_tracker.csv` recording all runs with their status (more useful for automated pipelines)
+- **Run tracking**: Centralized `your_runs.csv` recording all runs with their status (more useful for automated pipelines)
 
 The `run_metadata.json` file provides complete information about each run, including background mode, argument setting, and software version for full reproducibility.
 
