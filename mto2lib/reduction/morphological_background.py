@@ -77,7 +77,7 @@ def estimate_structural_background(image):
 
         tree_non_source, n_map_non_source = hg.simplify_tree(
             tree_structure,
-            np.logical_and(
+            np.logical_or(
                 all_labels != keep_label,
                 area < mean_area
             )
