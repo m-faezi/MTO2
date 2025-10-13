@@ -60,6 +60,8 @@ def estimate_structural_background(image, maxtree):
                 keep_label = unique_labels[1]
                 mean_area = area_label_1
 
+            all_labels[maxtree.area > mean_area] = keep_label
+
         tree_non_source, n_map_non_source = hg.simplify_tree(
             maxtree.tree,
             np.logical_or(
