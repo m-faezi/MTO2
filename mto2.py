@@ -78,7 +78,7 @@ class MTO2Run:
 
     def create_reduced_image(self):
 
-        self.reduced_image = self.smooth_image - self.bg_map
+        self.reduced_image = self.smooth_image - self.bg_mean
         reduced_output = os.path.join(self.results_dir, "reduced.fits")
         io_utils.save_fits_with_header(self.reduced_image, self.header, reduced_output)
 
