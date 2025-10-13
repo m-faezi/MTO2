@@ -5,40 +5,25 @@ import higra as hg
 import numpy as np
 
 
-def estimate_structural_background(image):
+def estimate_structural_background(image, maxtree):
 
-    graph_structure, tree_structure, altitudes = uts.image_to_hierarchical_structure(image)
+    main_branch = uts.get_main_branch(maxtree.gamma)
 
-    x, y = uts.centroid(tree_structure, image.shape[:2])
-    distances = np.sqrt((x[tree_structure.parents()] - x) ** 2 + (y[tree_structure.parents()] - y) ** 2)
-
-    area, volume, mean, variance, topological_height, distance_to_root_center = uts.get_max_tree_attributes(
-        tree_structure, altitudes, image
-    )
-
-    non_bool_unique_topological_height = uts.mark_non_unique(topological_height)
-    masked_topological_height = topological_height[~non_bool_unique_topological_height]
-    masked_area = area[~non_bool_unique_topological_height]
-    masked_volume = volume[~non_bool_unique_topological_height]
-    masked_altitudes = altitudes[~non_bool_unique_topological_height]
-    masked_distance_to_root = distance_to_root_center[~non_bool_unique_topological_height]
+    mb_topological_height = maxtree.gamma[main_branch]
+    mb_area = maxtree.area[main_branch]
+    mb_volume = maxtree.volume[main_branch]
+    mb_altitudes = maxtree.altitudes[main_branch]
+    mb_distance_to_root = maxtree.distance_to_root_center[main_branch]
 
     features = [
-        masked_topological_height,
-        masked_area,
-        masked_volume,
-        masked_altitudes,
-        masked_distance_to_root
+        mb_topological_height,
+        mb_area,
+        mb_volume,
+        mb_altitudes,
+        mb_distance_to_root
     ]
 
     filtered_features = [feature for feature in features if not np.isnan(feature).any()]
-
-    gaussian_intensities = uts.compute_gaussian_profile(
-        mean,
-        variance,
-        distances,
-        altitudes / area
-    )
 
     try:
 
@@ -46,24 +31,24 @@ def estimate_structural_background(image):
 
             all_labels = tc_uts.pytorch_fuzzy_c_means(
                 filtered_features,
-                non_bool_unique_topological_height,
-                altitudes
+                ~main_branch,
+                maxtree.altitudes
             )
 
         except Exception as e:
 
             all_labels = ml_uts.binary_cluster_bg_structure_minibatch(
                 filtered_features,
-                non_bool_unique_topological_height,
-                altitudes
+                ~main_branch,
+                maxtree.altitudes
             )
 
         unique_labels = np.unique(all_labels)
 
         if len(unique_labels) == 2:
 
-            area_label_0 = np.mean(area[all_labels == unique_labels[0]])
-            area_label_1 = np.mean(area[all_labels == unique_labels[1]])
+            area_label_0 = np.mean(maxtree.area[all_labels == unique_labels[0]])
+            area_label_1 = np.mean(maxtree.area[all_labels == unique_labels[1]])
 
             if area_label_0 > area_label_1:
 
@@ -76,27 +61,27 @@ def estimate_structural_background(image):
                 mean_area = area_label_1
 
         tree_non_source, n_map_non_source = hg.simplify_tree(
-            tree_structure,
+            maxtree.tree,
             np.logical_or(
                 all_labels != keep_label,
-                area < mean_area
+                maxtree.area < mean_area
             )
         )
 
-        morph_background = hg.reconstruct_leaf_data(tree_non_source, altitudes[n_map_non_source])
+        morph_background = hg.reconstruct_leaf_data(tree_non_source, maxtree.altitudes[n_map_non_source])
 
 
     except Exception as e:
 
         tree_non_source, n_map_non_source = hg.simplify_tree(
-            tree_structure,
+            maxtree.tree,
             np.logical_or(
-                ~non_bool_unique_topological_height,
-                altitudes / area >= gaussian_intensities
+                main_branch,
+                maxtree.altitudes / maxtree.area >= maxtree.gaussian_intensities
             )
         )
 
-        morph_background = hg.reconstruct_leaf_data(tree_non_source, altitudes[n_map_non_source])
+        morph_background = hg.reconstruct_leaf_data(tree_non_source, maxtree.altitudes[n_map_non_source])
 
 
 
