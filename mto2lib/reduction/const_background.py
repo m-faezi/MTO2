@@ -17,18 +17,10 @@ def estimate_background(img, rejection_rate=0.05):
     rejection_rate_2 = 1 - pow(1 - rejection_rate, 0.25)
     
     tile_size = largest_flat_tile(img)
-
-    if tile_size == 0:
-
-            bg_mean, bg_var, bg_gain, bg_map = mb.estimate_structural_background(img)
-
-            return bg_mean, bg_var, bg_gain, bg_map, 'morph'
-
     bg_mean, bg_var, gain = collect_info(img, tile_size)
-
     background_map = np.full_like(img, bg_mean, dtype=np.float64)
 
-    return bg_mean, bg_var, gain, background_map, 'const'
+    return bg_mean, bg_var, gain, background_map
 
 
 def largest_flat_tile(img, tile_size_start=6, tile_size_min=4, tile_size_max=7):

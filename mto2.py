@@ -51,7 +51,7 @@ class MTO2Run:
 
     def estimate_const_bg(self):
 
-        self.bg_mean, self.bg_var, self.bg_gain, self.bg_map, self.actual_mode = (
+        self.bg_mean, self.bg_var, self.bg_gain, self.bg_map = (
             preprocessing.get_constant_background_map(self.smooth_image)
         )
 

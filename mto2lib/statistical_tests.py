@@ -92,7 +92,7 @@ def move_up(
                     area/parent_area >= area_ratio
                 )
             ),
-            altitudes>=gaussian
+            altitudes/area>=gaussian
         )
 
     parent_closest_object_ancestor = closest_object_ancestor[tree.parents()]
