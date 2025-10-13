@@ -28,9 +28,7 @@ def register_signal_handlers():
     signal.signal(signal.SIGTERM, signal_handler)
 
 
-def save_parameters_metadata(arguments, results_dir, actual_background_mode=None):
-
-    background_mode_used = actual_background_mode if actual_background_mode else arguments.background_mode
+def save_parameters_metadata(arguments, results_dir):
 
     metadata = {
         "software": "MTO2",
@@ -38,13 +36,12 @@ def save_parameters_metadata(arguments, results_dir, actual_background_mode=None
         "time_stamp": arguments.time_stamp,
         "file_name": os.path.splitext(os.path.basename(arguments.file_path))[0],
         "arguments": {
-            "background_mode_requested": arguments.background_mode,
-            "background_mode_used": background_mode_used,
+            "background_mode": arguments.background_mode,
             "move_factor": arguments.move_factor,
             "area_ratio": arguments.area_ratio,
             "s_sigma": arguments.s_sigma,
             "G_fit": arguments.G_fit,
-            "crop": arguments.crop if arguments.crop else None
+            "crop": arguments.crop if arguments.crop else 'full frame'
         }
     }
 
@@ -56,35 +53,34 @@ def save_parameters_metadata(arguments, results_dir, actual_background_mode=None
 
     print(f"Saved argument metadata to: {metadata_file}")
 
-    save_run_record(arguments, background_mode_used, "Running")
+    save_run_record(arguments, "Running")
 
     register_signal_handlers()
 
-    atexit.register(finalize_run_record, arguments, background_mode_used)
+    atexit.register(finalize_run_record, arguments)
 
     return metadata_file
 
 
-def finalize_run_record(arguments, background_mode_used):
+def finalize_run_record(arguments):
 
     set_run_status("Completed")
-    save_run_record(arguments, background_mode_used, _run_status)
+    save_run_record(arguments, _run_status)
 
 
-def save_run_record(arguments, background_mode_used, status="Running"):
+def save_run_record(arguments, status="Running"):
 
     run_csv_path = os.path.join("./results", "your_runs.csv")
 
     run_record = {
         "run_id": arguments.time_stamp,
         "file_name": os.path.splitext(os.path.basename(arguments.file_path))[0],
-        "background_mode_requested": arguments.background_mode,
-        "background_mode_used": background_mode_used,
+        "background_mode": arguments.background_mode,
         "move_factor": arguments.move_factor,
         "area_ratio": arguments.area_ratio,
         "s_sigma": arguments.s_sigma,
         "G_fit": arguments.G_fit,
-        "crop": str(arguments.crop) if arguments.crop else "None",
+        "crop": str(arguments.crop) if arguments.crop else 'full frame',
         "status": status,
     }
 

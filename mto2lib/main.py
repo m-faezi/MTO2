@@ -16,13 +16,9 @@ def setup():
     results_dir = os.path.join("./results", arguments.time_stamp)
     os.makedirs(results_dir, exist_ok=True)
 
-    crop_coords = None
+    arguments.crop = validate_crop_coordinates(arguments.crop)
 
-    if arguments.crop:
-
-        crop_coords = validate_crop_coordinates(arguments.crop)
-
-    image, header = io_utils.read_image_data(arguments.file_path, crop_coords)
+    image, header = io_utils.read_image_data(arguments.file_path, arguments.crop)
 
     if arguments.crop:
 

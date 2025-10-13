@@ -30,7 +30,6 @@ class MTO2Run:
         self.header = None
         self.arguments = None
         self.results_dir = None
-        self.actual_mode = None
         self.bg_mean = None
         self.bg_var = None
         self.bg_gain = None
@@ -73,7 +72,7 @@ class MTO2Run:
         bg_output = os.path.join(self.results_dir, "background_map.fits")
         io_utils.save_fits_with_header(self.bg_map, self.header, bg_output)
 
-        print(f"Saved {self.actual_mode} background to: {bg_output}")
+        print(f"Saved {self.arguments.background_mode} background to: {bg_output}")
 
         return self
 
@@ -216,7 +215,7 @@ def execute_run():
 
                 run.arguments.background_mode = 'morph'
 
-                print(f"Note: Background mode switched from const to '{run.arguments.background_mode}'!")
+                print(f"Note: Background mode switched from \'const\' to '{run.arguments.background_mode}'!")
 
                 maxtree = MaxTree()
                 maxtree.construct_max_tree(run.smooth_image)
@@ -235,7 +234,6 @@ def execute_run():
         io_utils.save_parameters_metadata(
             run.arguments,
             run.results_dir,
-            actual_background_mode=run.actual_mode
         )
 
         run.save_background()

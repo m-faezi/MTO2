@@ -54,7 +54,7 @@ def validate_crop_coordinates(value):
 
             raise ValueError("Coordinates must be non-negative")
 
-        return (x1, y1, x2, y2)
+        return x1, y1, x2, y2
 
     except ValueError as e:
 
