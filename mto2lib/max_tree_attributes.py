@@ -13,7 +13,7 @@ def compute_attributes(tree_structure, altitudes, run):
     parent_area = area[tree_structure.parents()]
     parent_altitude = altitudes[tree_structure.parents()]
 
-    if run.arguments.G_fit:
+    if run.arguments.G_fit or run.arguments.background_mode == 'morph':
 
         gaussian_intensities = uts.compute_gaussian_profile(
             variance,

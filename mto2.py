@@ -214,9 +214,9 @@ def execute_run():
 
             except Exception as e:
 
-                run.actual_mode = 'morph'
+                run.background_mode = 'morph'
 
-                print(f"Note: Background mode fell back from '{run.arguments.background_mode}' to '{run.actual_mode}'!")
+                print(f"Note: Background mode switched from const to '{run.arguments.background_mode}'!")
 
                 maxtree = MaxTree()
                 maxtree.construct_max_tree(run.smooth_image)
