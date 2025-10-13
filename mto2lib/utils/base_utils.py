@@ -165,12 +165,12 @@ def compute_r_fwhm(image, coords):
     return r_fwhm
 
 
-def mark_non_unique(array):
+def get_main_branch(array):
 
     unique, counts = np.unique(array, return_counts=True)
     count_dict = dict(zip(unique, counts))
     counts_array = np.vectorize(count_dict.get)(array)
-    bool_array = counts_array > 1
+    bool_array = counts_array == 1
 
     return bool_array
 
@@ -183,7 +183,7 @@ def gaussian_profile(I_0, sigma, R, mu=0):
     return I_0 * np.exp(-((R - mu) ** 2) / (2 * sigma ** 2))
 
 
-def compute_gaussian_profile(mean, variance, distances, intensity, center=0):
+def compute_gaussian_profile(variance, distances, intensity, center=0):
 
     I_0 = intensity
     np.nan_to_num(variance, nan=0)

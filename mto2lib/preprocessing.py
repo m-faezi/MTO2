@@ -13,8 +13,8 @@ def get_constant_background_map(image):
     return cb.estimate_background(image)
 
 
-def get_morphological_background_map(image):
+def get_morphological_background_map(image, maxtree):
 
-    return mb.estimate_structural_background(image)
+    return mb.estimate_structural_background(image, maxtree)
 
 
