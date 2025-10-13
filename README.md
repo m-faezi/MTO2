@@ -118,8 +118,7 @@ The `run_metadata.json` file provides complete information about each run, inclu
   "time_stamp": "2025-10-09T12:14:45.580277",
   "file_name": "Your-Data-Name",
   "arguments": {
-    "background_mode_requested": "morph",
-    "background_mode_used": "morph",
+    "background_mode": "morph",
     "move_factor": 0.1,
     "area_ratio": 0.91,
     "s_sigma": 1.6,
