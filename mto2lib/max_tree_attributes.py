@@ -18,7 +18,7 @@ def compute_attributes(tree_structure, altitudes, run):
         gaussian_intensities = uts.compute_gaussian_profile(
             variance,
             distances,
-            altitudes
+            altitudes/area
         )
 
     else:
