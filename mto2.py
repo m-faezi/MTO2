@@ -214,7 +214,7 @@ def execute_run():
 
             except Exception as e:
 
-                run.background_mode = 'morph'
+                run.arguments.background_mode = 'morph'
 
                 print(f"Note: Background mode switched from const to '{run.arguments.background_mode}'!")
 
