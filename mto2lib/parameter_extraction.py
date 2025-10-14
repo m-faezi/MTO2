@@ -67,3 +67,5 @@ def extract_parameters(
         file_name=output_csv
     )
 
+    return None
+

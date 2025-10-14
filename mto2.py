@@ -119,40 +119,6 @@ class MTO2Run:
         return self
 
 
-    def create_segmentation(self, tree, image, modified_isophote):
-
-        return segment.get_segmentation_map(
-            tree.tree_structure,
-            modified_isophote,
-            image.header,
-            self.arguments
-        )
-
-    def extract_parameters(
-        self,
-        tree_of_segments,
-        n_map_segments,
-        unique_ids,
-        parent_altitude,
-        area,
-        image
-    ):
-
-        if self.arguments.par_out:
-            parameter_extraction.extract_parameters(
-                image.image,
-                image.header,
-                tree_of_segments,
-                n_map_segments,
-                parent_altitude,
-                area,
-                unique_ids,
-                self.arguments,
-            )
-
-        return self
-
-
 class MaxTree:
 
     def __init__(self):
@@ -185,6 +151,42 @@ class MaxTree:
         (self.x, self.y, self.distances, self.distance_to_root_center, self.mean, self.variance, self.area,
         self.parent_area, self.gaussian_intensities, self.volume, self.parent_altitude, self.gamma, self.parent_gamma) \
             = max_tree_attributes.compute_attributes(self.tree_structure, self.altitudes, run, image)
+
+        return self
+
+
+class Extractor:
+
+    def __init__(self):
+        self.maxtree_of_segment = None
+        self.segment_node_map = None
+        self.ids = None
+
+
+    def create_segmentation(self, tree, image, modified_isophote, run):
+
+        self.maxtree_of_segment, self.segment_node_map, self.ids = segment.get_segmentation_map(
+            tree.tree_structure,
+            modified_isophote,
+            image.header,
+            run.arguments
+        )
+
+        return self
+
+
+    def extract_parameters(self, extractor, maxtree, run, image):
+
+        parameter_extraction.extract_parameters(
+            image.image,
+            image.header,
+            extractor.maxtree_of_segment,
+            extractor.segment_node_map,
+            maxtree.parent_altitude,
+            maxtree.area,
+            extractor.ids,
+            run.arguments,
+        )
 
         return self
 
@@ -243,18 +245,20 @@ def execute_run():
 
         modified_isophote = statistical_tests.move_up(maxtree, dark_frame, run)
 
-        tree_of_segments, n_map_segments, unique_ids = run.create_segmentation(
-            maxtree, image, modified_isophote
+        extractor = Extractor()
+
+        extractor.create_segmentation(
+            maxtree, image, modified_isophote, run
         )
 
-        run.extract_parameters(
-            tree_of_segments,
-            n_map_segments,
-            unique_ids,
-            maxtree.parent_altitude,
-            maxtree.area,
-            image
-        )
+        if run.arguments.par_out:
+            
+            extractor.extract_parameters(
+                extractor,
+                maxtree,
+                run,
+                image
+            )
 
         run.status = "Completed"
         io_utils.save_run_metadata(run)
