@@ -73,7 +73,7 @@ def execute_run():
 
         run.status = "Terminated"
         io_utils.save_run_metadata(run)
-        
+
         print(f"MTO2 run terminated with error: {e}")
 
         sys.exit(1)

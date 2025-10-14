@@ -41,6 +41,7 @@ def extract_parameters(
 
     y = [cen[0] for cen in centroids]
     x = [cen[1] for cen in centroids]
+
     ra, dec = uts.sky_coordinates(y, x, header)
 
     a, b, theta = uts.second_order_moments(tree_of_segments, image.shape[:2], image)
