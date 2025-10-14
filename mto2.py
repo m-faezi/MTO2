@@ -199,11 +199,11 @@ class MaxTree:
 
 def execute_run():
 
-        run = MTO2Run()
-        image = Image()
-        dark_frame = DarkFrame()
+    run = MTO2Run()
+    image = Image()
+    dark_frame = DarkFrame()
 
-    #try:
+    try:
 
         run.setup_args()
         image.get_image(run.arguments)
@@ -272,13 +272,13 @@ def execute_run():
 
         print("MTO2 run completed successfully!")
 
-#    except Exception as e:
-#
-#        io_utils.set_run_status("Terminated")
-#
-#        print(f"MTO2 run terminated with error: {e}")
-#
-#        sys.exit(1)
+    except Exception as e:
+
+        io_utils.set_run_status("Terminated")
+
+        print(f"MTO2 run terminated with error: {e}")
+
+        sys.exit(1)
 
 
 if __name__ == "__main__":
