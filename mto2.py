@@ -97,10 +97,12 @@ class MTO2Run:
     def __init__(self):
         self.arguments = None
         self.results_dir = None
+        self.status = None
 
 
     def setup_args(self):
 
+        self.status = "Running"
         self.arguments, self.results_dir = mto2.setup_args()
 
         return self
@@ -231,10 +233,7 @@ def execute_run():
 
             dark_frame.estimate_morph_bg(image, maxtree)
 
-        io_utils.save_parameters_metadata(
-            run.arguments,
-            run.results_dir,
-        )
+        io_utils.save_run_metadata(run)
 
         dark_frame.save_background(run.results_dir, image.header, run.arguments)
 
@@ -257,13 +256,14 @@ def execute_run():
             image
         )
 
-        io_utils.set_run_status("Completed")
+        run.status = "Completed"
+        io_utils.save_run_metadata(run)
 
         print("MTO2 run completed successfully!")
 
     except Exception as e:
 
-        io_utils.set_run_status("Terminated")
+        run.status = "Terminated"
 
         print(f"MTO2 run terminated with error: {e}")
 

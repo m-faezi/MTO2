@@ -2,50 +2,26 @@ from astropy.io import fits
 import json
 import os
 import pandas as pd
-import atexit
-import signal
-import sys
 
 
-_run_status = "Running"
-
-
-def set_run_status(status):
-
-    global _run_status
-    _run_status = status
-
-
-def signal_handler(signum, frame):
-
-    set_run_status("Terminated")
-    sys.exit(1)
-
-
-def register_signal_handlers():
-
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-
-
-def save_parameters_metadata(arguments, results_dir):
+def save_run_metadata(run):
 
     metadata = {
         "software": "MTO2",
         "version": "1.0.0",
-        "time_stamp": arguments.time_stamp,
-        "file_name": os.path.splitext(os.path.basename(arguments.file_path))[0],
+        "time_stamp": run.arguments.time_stamp,
+        "file_name": os.path.splitext(os.path.basename(run.arguments.file_path))[0],
         "arguments": {
-            "background_mode": arguments.background_mode,
-            "move_factor": arguments.move_factor,
-            "area_ratio": arguments.area_ratio,
-            "s_sigma": arguments.s_sigma,
-            "G_fit": arguments.G_fit,
-            "crop": arguments.crop if arguments.crop else 'full frame'
+            "background_mode": run.arguments.background_mode,
+            "move_factor": run.arguments.move_factor,
+            "area_ratio": run.arguments.area_ratio,
+            "s_sigma": run.arguments.s_sigma,
+            "G_fit": run.arguments.G_fit,
+            "crop": run.arguments.crop if run.arguments.crop else 'full frame'
         }
     }
 
-    metadata_file = os.path.join(results_dir, "run_metadata.json")
+    metadata_file = os.path.join(run.results_dir, "run_metadata.json")
 
     with open(metadata_file, 'w') as f:
 
@@ -53,35 +29,25 @@ def save_parameters_metadata(arguments, results_dir):
 
     print(f"Saved argument metadata to: {metadata_file}")
 
-    save_run_record(arguments, "Running")
-
-    register_signal_handlers()
-
-    atexit.register(finalize_run_record, arguments)
+    save_run_record(run)
 
     return metadata_file
 
 
-def finalize_run_record(arguments):
-
-    set_run_status("Completed")
-    save_run_record(arguments, _run_status)
-
-
-def save_run_record(arguments, status="Running"):
+def save_run_record(run):
 
     run_csv_path = os.path.join("./results", "your_runs.csv")
 
     run_record = {
-        "run_id": arguments.time_stamp,
-        "file_name": os.path.splitext(os.path.basename(arguments.file_path))[0],
-        "background_mode": arguments.background_mode,
-        "move_factor": arguments.move_factor,
-        "area_ratio": arguments.area_ratio,
-        "s_sigma": arguments.s_sigma,
-        "G_fit": arguments.G_fit,
-        "crop": str(arguments.crop) if arguments.crop else 'full frame',
-        "status": status,
+        "run_id": run.arguments.time_stamp,
+        "file_name": os.path.splitext(os.path.basename(run.arguments.file_path))[0],
+        "background_mode": run.arguments.background_mode,
+        "move_factor": run.arguments.move_factor,
+        "area_ratio": run.arguments.area_ratio,
+        "s_sigma": run.arguments.s_sigma,
+        "G_fit": run.arguments.G_fit,
+        "crop": str(run.arguments.crop) if run.arguments.crop else 'full frame',
+        "status": run.status,
     }
 
     if os.path.exists(run_csv_path):
@@ -89,10 +55,10 @@ def save_run_record(arguments, status="Running"):
         try:
             existing_df = pd.read_csv(run_csv_path)
 
-            if arguments.time_stamp in existing_df['run_id'].values:
+            if run.arguments.time_stamp in existing_df['run_id'].values:
 
                 existing_df.loc[
-                    existing_df['run_id'] == arguments.time_stamp, list(run_record.keys())] = list(
+                    existing_df['run_id'] == run.arguments.time_stamp, list(run_record.keys())] = list(
                     run_record.values())
                 updated_df = existing_df
 
@@ -115,13 +81,13 @@ def save_run_record(arguments, status="Running"):
 
     updated_df.to_csv(run_csv_path, index=False)
 
-    if status == "Running":
+    if run.status == "Running":
 
         print(f"Run record created in: {run_csv_path}")
 
     else:
 
-        print(f"Run marked as {status} in: {run_csv_path}")
+        print(f"Run marked as {run.status} in: {run_csv_path}")
 
 
 def read_image_data(file_path, crop_coords=None):
