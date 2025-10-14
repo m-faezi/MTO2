@@ -1,194 +1,12 @@
-import mto2lib.main as mto2
-from mto2lib.utils import base_utils, io_utils
+from image import Image
+from dark_frame import DarkFrame
+from mto2_run import MTO2Run
+from max_tree import MaxTree
+from extractor import Extractor
 
-from mto2lib import (
-    validators,
-    preprocessing,
-    max_tree_attributes,
-    statistical_tests,
-    segment,
-    parameter_extraction,
-)
-
-import os
+from mto2lib.utils import io_utils
+from mto2lib import statistical_tests
 import sys
-
-
-def build_hierarchical_structure(image_reduced):
-
-    graph_structure, tree_structure, altitudes = base_utils.image_to_hierarchical_structure(image_reduced)
-
-    return tree_structure, altitudes
-
-
-class Image:
-
-    def __init__(self):
-        self.image = None
-        self.smooth_image = None
-        self.reduced_image = None
-        self.header = None
-
-
-    def get_image(self, arguments):
-
-        self.image, self.header = mto2.get_image(arguments)
-
-        return self
-
-
-    def preprocess_image(self, s_sigma):
-
-        self.image = validators.image_value_check(self.image)
-
-        self.smooth_image = preprocessing.smooth_filter(self.image, s_sigma)
-
-        return self
-
-
-class DarkFrame:
-
-    def __init__(self):
-        self.bg_mean = None
-        self.bg_var = None
-        self.bg_gain = None
-        self.bg_map = None
-
-    def estimate_const_bg(self, smooth_image):
-
-        self.bg_mean, self.bg_var, self.bg_gain, self.bg_map = (
-            preprocessing.get_constant_background_map(smooth_image)
-        )
-
-        return self
-
-
-    def estimate_morph_bg(self, image, maxtree):
-
-        self.bg_mean, self.bg_var, self.bg_gain, self.bg_map = (
-            preprocessing.get_morphological_background_map(image.smooth_image, maxtree)
-        )
-
-        return self
-
-
-    def save_background(self, results_dir, header, arguments):
-
-        bg_output = os.path.join(results_dir, "background_map.fits")
-        io_utils.save_fits_with_header(self.bg_map, header, bg_output)
-
-        print(f"Saved {arguments.background_mode} background to: {bg_output}")
-
-        return self
-
-    def create_reduced_image(self, image, results_dir):
-
-        image.reduced_image = image.smooth_image - self.bg_mean
-        reduced_output = os.path.join(results_dir, "reduced.fits")
-        io_utils.save_fits_with_header(image.reduced_image, image.header, reduced_output)
-
-        print(f"Saved reduced image to: {reduced_output}")
-
-        return self
-
-
-class MTO2Run:
-
-    def __init__(self):
-        self.arguments = None
-        self.results_dir = None
-        self.status = None
-
-
-    def setup_args(self):
-
-        self.status = "Running"
-        self.arguments, self.results_dir = mto2.setup_args()
-
-        return self
-
-
-    def detect_significant_objects(self, dark_frame, tree):
-
-        significant_nodes = statistical_tests.attribute_statistical_significance(
-            tree, dark_frame
-        )
-
-        tree.init_segments = statistical_tests.select_objects(tree, significant_nodes)
-
-        return self
-
-
-class MaxTree:
-
-    def __init__(self):
-        self.graph = None
-        self.tree_structure = None
-        self.altitudes = None
-        self.x = None
-        self.y = None
-        self.distances = None
-        self.distance_to_root_center = None
-        self.mean = None
-        self.variance = None
-        self.area = None
-        self.parent_area = None
-        self.gaussian_intensities = None
-        self.volume = None
-        self.parent_altitude = None
-        self.gamma = None
-        self.parent_gamma = None
-        self.init_segments = None
-
-    def construct_max_tree(self, image_reduced):
-
-        self.graph, self.tree_structure, self.altitudes = base_utils.image_to_hierarchical_structure(image_reduced)
-
-        return self
-
-    def compute_attributes(self, run, image):
-
-        (self.x, self.y, self.distances, self.distance_to_root_center, self.mean, self.variance, self.area,
-        self.parent_area, self.gaussian_intensities, self.volume, self.parent_altitude, self.gamma, self.parent_gamma) \
-            = max_tree_attributes.compute_attributes(self.tree_structure, self.altitudes, run, image)
-
-        return self
-
-
-class Extractor:
-
-    def __init__(self):
-        self.maxtree_of_segment = None
-        self.segment_node_map = None
-        self.ids = None
-
-
-    def create_segmentation(self, tree, image, modified_isophote, run):
-
-        self.maxtree_of_segment, self.segment_node_map, self.ids = segment.get_segmentation_map(
-            tree.tree_structure,
-            modified_isophote,
-            image.header,
-            run.arguments
-        )
-
-        return self
-
-
-    def extract_parameters(self, extractor, maxtree, run, image):
-
-        parameter_extraction.extract_parameters(
-            image.image,
-            image.header,
-            extractor.maxtree_of_segment,
-            extractor.segment_node_map,
-            maxtree.parent_altitude,
-            maxtree.area,
-            extractor.ids,
-            run.arguments,
-        )
-
-        return self
 
 
 def execute_run():
@@ -201,7 +19,6 @@ def execute_run():
 
         run.setup_args()
         image.get_image(run.arguments)
-
         image.preprocess_image(run.arguments.s_sigma)
 
         if run.arguments.background_mode == 'const':
@@ -219,12 +36,11 @@ def execute_run():
 
                 run.arguments.background_mode = 'morph'
 
-                print(f"Note: Background mode switched from \'const\' to '{run.arguments.background_mode}'!")
+                print(f"Note: Background mode switched from 'const' to '{run.arguments.background_mode}'!")
 
                 maxtree = MaxTree()
                 maxtree.construct_max_tree(image.smooth_image)
                 maxtree.compute_attributes(run, image)
-
                 dark_frame.estimate_morph_bg(image, maxtree)
 
         else:
@@ -232,33 +48,21 @@ def execute_run():
             maxtree = MaxTree()
             maxtree.construct_max_tree(image.smooth_image)
             maxtree.compute_attributes(run, image)
-
             dark_frame.estimate_morph_bg(image, maxtree)
 
         io_utils.save_run_metadata(run)
-
         dark_frame.save_background(run.results_dir, image.header, run.arguments)
-
         dark_frame.create_reduced_image(image, run.results_dir)
 
         run.detect_significant_objects(dark_frame, maxtree)
-
         modified_isophote = statistical_tests.move_up(maxtree, dark_frame, run)
 
         extractor = Extractor()
-
-        extractor.create_segmentation(
-            maxtree, image, modified_isophote, run
-        )
+        extractor.create_segmentation(maxtree, image, modified_isophote, run)
 
         if run.arguments.par_out:
-            
-            extractor.extract_parameters(
-                extractor,
-                maxtree,
-                run,
-                image
-            )
+
+            extractor.extract_parameters(extractor, maxtree, run, image)
 
         run.status = "Completed"
         io_utils.save_run_metadata(run)
@@ -268,12 +72,14 @@ def execute_run():
     except Exception as e:
 
         run.status = "Terminated"
-
+        io_utils.save_run_metadata(run)
+        
         print(f"MTO2 run terminated with error: {e}")
 
         sys.exit(1)
 
 
 if __name__ == "__main__":
+
     execute_run()
 
