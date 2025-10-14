@@ -114,18 +114,8 @@ class MTO2Run:
 
         tree.init_segments = statistical_tests.select_objects(tree, significant_nodes)
 
-    def refine_isophotes(
-        self,
-        tree,
-        dark_frame,
-        run
-    ):
+        return self
 
-        return statistical_tests.move_up(
-            tree,
-            dark_frame,
-            run,
-        )
 
     def create_segmentation(self, tree, image, modified_isophote):
 
@@ -252,8 +242,7 @@ def execute_run():
 
         run.detect_significant_objects(dark_frame, maxtree)
 
-        modified_isophote = run.refine_isophotes(maxtree, dark_frame, run)
-
+        modified_isophote = statistical_tests.move_up(maxtree, dark_frame, run)
 
         tree_of_segments, n_map_segments, unique_ids = run.create_segmentation(
             maxtree, image, modified_isophote
