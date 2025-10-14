@@ -5,7 +5,7 @@ from datetime import datetime
 import os
 
 
-def setup():
+def setup_args():
 
     arguments = make_parser().parse_args()
 
@@ -27,5 +27,12 @@ def setup():
         io_utils.save_fits_with_header(image, header, cropped_file)
         print(f"Saved cropped image to: {cropped_file}")
 
-    return image, header, arguments, results_dir
+    return arguments, results_dir
+
+
+def get_image(arguments):
+
+    image, header = io_utils.read_image_data(arguments.file_path, arguments.crop)
+
+    return image, header
 

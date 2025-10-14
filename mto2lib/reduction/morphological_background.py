@@ -63,7 +63,7 @@ def estimate_structural_background(image, maxtree):
             all_labels[maxtree.area > mean_area] = keep_label
 
         tree_non_source, n_map_non_source = hg.simplify_tree(
-            maxtree.tree,
+            maxtree.tree_structure,
             np.logical_or(
                 all_labels != keep_label,
                 maxtree.area < mean_area
@@ -76,7 +76,7 @@ def estimate_structural_background(image, maxtree):
     except Exception as e:
 
         tree_non_source, n_map_non_source = hg.simplify_tree(
-            maxtree.tree,
+            maxtree.tree_structure,
             np.logical_or(
                 main_branch,
                 maxtree.altitudes / maxtree.area >= maxtree.gaussian_intensities
