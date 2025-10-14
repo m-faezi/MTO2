@@ -67,7 +67,7 @@ def execute_run():
         run.status = "Completed"
         io_utils.save_run_metadata(run)
 
-        print("MTO2 run completed successfully!")
+        print("\nMTO2 run completed successfully!")
 
     except KeyboardInterrupt:
 
@@ -82,7 +82,7 @@ def execute_run():
         run.status = "Terminated"
         io_utils.save_run_metadata(run)
 
-        print(f"MTO2 run terminated with error: {e}")
+        print(f"\nMTO2 run terminated with error: {e}")
 
         sys.exit(1)
 
