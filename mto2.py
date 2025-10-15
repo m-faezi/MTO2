@@ -1,6 +1,6 @@
 from image import Image
 from dark_frame import DarkFrame
-from mto2_run import MTO2Run
+from run import Run
 from max_tree import MaxTree
 from extractor import Extractor
 
@@ -11,7 +11,7 @@ import sys
 
 def execute_run():
 
-    run = MTO2Run()
+    run = Run()
     image = Image()
     dark_frame = DarkFrame()
 

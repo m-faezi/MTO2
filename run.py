@@ -2,7 +2,7 @@ import mto2lib.main as mto2
 from mto2lib import statistical_tests
 
 
-class MTO2Run:
+class Run:
 
     def __init__(self):
         self.arguments = None
