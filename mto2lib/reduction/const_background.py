@@ -18,7 +18,7 @@ def estimate_background(img, rejection_rate=0.05):
     
     tile_size = largest_flat_tile(img)
     bg_mean, bg_var, gain = collect_info(img, tile_size)
-    background_map = np.full_like(img, bg_mean, dtype=np.float64)
+    background_map = np.full_like(img, bg_mean, dtype=np.float32)
 
     return bg_mean, bg_var, gain, background_map
 

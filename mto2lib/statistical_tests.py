@@ -6,9 +6,9 @@ import higra as hg
 def attribute_statistical_significance(maxtree, dark_frame, alpha=1e-6):
 
     denominator = (dark_frame.bg_var + maxtree.altitudes[maxtree.tree_structure.parents()] /
-                   (dark_frame.bg_gain + np.finfo(np.float64).eps))
+                   (dark_frame.bg_gain + np.finfo(np.float32).eps))
 
-    safe_denominator = np.where(denominator == 0, np.finfo(np.float64).eps, denominator)
+    safe_denominator = np.where(denominator == 0, np.finfo(np.float32).eps, denominator)
     maxtree.volume /= safe_denominator
 
     significant_nodes = maxtree.volume > chi2.ppf(alpha, maxtree.area)

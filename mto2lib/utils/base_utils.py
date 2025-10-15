@@ -17,7 +17,7 @@ def centroid(tree, size):
 
     emb = hg.EmbeddingGrid2d(size)
     coord = emb.lin2grid(np.arange(tree.num_leaves()))
-    m = np.zeros((tree.num_leaves(), 3), dtype=np.float64)
+    m = np.zeros((tree.num_leaves(), 3), dtype=np.float32)
     m[:, 0] = 1
     m[:, 1] = coord[:, 0]
     m[:, 2] = coord[:, 1]
@@ -38,7 +38,7 @@ def weighted_centroid(tree, size, image):
     emb = hg.EmbeddingGrid2d(size)
     coord = emb.lin2grid(np.arange(tree.num_leaves()))
 
-    m = np.zeros((tree.num_leaves(), 3), dtype=np.float64)
+    m = np.zeros((tree.num_leaves(), 3), dtype=np.float32)
     m[:, 0] = 1
     m[:, 1] = coord[:, 0]
     m[:, 2] = coord[:, 1]
@@ -177,7 +177,7 @@ def get_main_branch(array):
 
 def gaussian_profile(I_0, sigma, R, mu=0):
 
-    epsilon = np.finfo(np.float64).eps
+    epsilon = np.finfo(np.float32).eps
     sigma = np.maximum(sigma, epsilon)
 
     return I_0 * np.exp(-((R - mu) ** 2) / (2 * sigma ** 2))
@@ -234,7 +234,7 @@ def total_flux(tree, size, image):
     emb = hg.EmbeddingGrid2d(size)
     coord = emb.lin2grid(np.arange(tree.num_leaves()))
 
-    m = np.zeros((tree.num_leaves(), 3), dtype=np.float64)
+    m = np.zeros((tree.num_leaves(), 3), dtype=np.float32)
     m[:, 0] = 1
     m[:, 1] = coord[:, 0]
     m[:, 2] = coord[:, 1]
@@ -255,7 +255,7 @@ def second_order_moments(tree, size, image):
     # image = np.exp(image)
     emb = hg.EmbeddingGrid2d(size)
     coord = emb.lin2grid(np.arange(tree.num_leaves()))
-    m = np.zeros((tree.num_leaves(), 6), dtype=np.float64)
+    m = np.zeros((tree.num_leaves(), 6), dtype=np.float32)
     m[:, 0] = 1
     m[:, 1] = coord[:, 0]
     m[:, 2] = coord[:, 1]

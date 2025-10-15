@@ -87,7 +87,7 @@ def estimate_structural_background(image, maxtree):
 
 
 
-    morph_background_map = np.full_like(image, morph_background, dtype=np.float64)
+    morph_background_map = np.full_like(image, morph_background, dtype=np.float32)
 
     soft_bias = 0.0
     image_minimum = np.nanmin(image)
@@ -98,7 +98,7 @@ def estimate_structural_background(image, maxtree):
 
     bg_mean = np.nanmean(morph_background, axis=None)
     bg_var = np.nanvar(morph_background, axis=None)
-    gain = (bg_mean - np.abs(soft_bias)) / np.maximum(bg_var, np.finfo(np.float64).eps)
+    gain = (bg_mean - np.abs(soft_bias)) / np.maximum(bg_var, np.finfo(np.float32).eps)
 
     return bg_mean, bg_var, gain, morph_background_map
 
