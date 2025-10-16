@@ -18,7 +18,7 @@ def execute_run():
     try:
 
         run.setup_args()
-        image.get_image(run.arguments)
+        image.get_image(run)
         image.preprocess_image(run.arguments.s_sigma)
 
         if run.arguments.background_mode == 'const':

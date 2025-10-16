@@ -17,7 +17,7 @@ def save_run_metadata(run):
             "area_ratio": run.arguments.area_ratio,
             "s_sigma": run.arguments.s_sigma,
             "G_fit": run.arguments.G_fit,
-            "crop": run.arguments.crop if run.arguments.crop else 'full frame'
+            "crop": run.arguments.crop
         }
     }
 
@@ -46,7 +46,7 @@ def save_run_record(run):
         "area_ratio": run.arguments.area_ratio,
         "s_sigma": run.arguments.s_sigma,
         "G_fit": run.arguments.G_fit,
-        "crop": str(run.arguments.crop) if run.arguments.crop else 'full frame',
+        "crop": run.arguments.crop,
         "status": run.status,
     }
 
@@ -57,9 +57,7 @@ def save_run_record(run):
 
             if run.arguments.time_stamp in existing_df['run_id'].values:
 
-                existing_df.loc[
-                    existing_df['run_id'] == run.arguments.time_stamp, list(run_record.keys())] = list(
-                    run_record.values())
+                existing_df.loc[existing_df['run_id'] == run.arguments.time_stamp, 'status'] = run.status
                 updated_df = existing_df
 
             else:

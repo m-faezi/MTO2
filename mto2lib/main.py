@@ -14,25 +14,27 @@ def setup_args():
     print("Run ID: " + arguments.time_stamp)
 
     results_dir = os.path.join("./results", arguments.time_stamp)
+
     os.makedirs(results_dir, exist_ok=True)
-
-    arguments.crop = validate_crop_coordinates(arguments.crop)
-
-    image, header = io_utils.read_image_data(arguments.file_path, arguments.crop)
-
-    if arguments.crop:
-
-        cropped_file = os.path.join(results_dir, "cropped_input.fits")
-
-        io_utils.save_fits_with_header(image, header, cropped_file)
-        print(f"Saved cropped image to: {cropped_file}")
 
     return arguments, results_dir
 
 
-def get_image(arguments):
+def get_image(arguments, results_dir):
 
-    image, header = io_utils.read_image_data(arguments.file_path, arguments.crop)
+    image, header = io_utils.read_image_data(arguments.file_path)
+
+    if arguments.crop:
+
+        arguments.crop = validate_crop_coordinates(arguments.crop, image.shape)
+
+        image, header = io_utils.read_image_data(arguments.file_path, arguments.crop)
+
+        cropped_file = os.path.join(results_dir, "cropped_input.fits")
+
+        io_utils.save_fits_with_header(image, header, cropped_file)
+
+        print(f"Saved cropped image to: {cropped_file}")
 
     return image, header
 
