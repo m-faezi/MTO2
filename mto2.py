@@ -5,7 +5,6 @@ from max_tree import MaxTree
 from extractor import Extractor
 
 from mto2lib.utils import io_utils
-from mto2lib import statistical_tests
 import sys
 
 
@@ -54,11 +53,11 @@ def execute_run():
         dark_frame.save_background(run.results_dir, image.header, run.arguments)
         dark_frame.create_reduced_image(image, run.results_dir)
 
-        run.detect_significant_objects(dark_frame, maxtree)
-        modified_isophote = statistical_tests.move_up(maxtree, dark_frame, run)
+        maxtree.detect_significant_objects(dark_frame)
+        maxtree.move_up(dark_frame, run)
 
         extractor = Extractor()
-        extractor.create_segmentation(maxtree, image, modified_isophote, run)
+        extractor.create_segmentation(maxtree, image, run)
 
         if run.arguments.par_out:
 

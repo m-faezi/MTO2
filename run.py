@@ -1,5 +1,4 @@
 import mto2lib.main as mto2
-from mto2lib import statistical_tests
 
 
 class Run:
@@ -16,13 +15,5 @@ class Run:
 
         return self
 
-    def detect_significant_objects(self, dark_frame, tree):
 
-        significant_nodes = statistical_tests.attribute_statistical_significance(
-            tree, dark_frame
-        )
-
-        tree.init_segments = statistical_tests.select_objects(tree, significant_nodes)
-
-        return self
 
