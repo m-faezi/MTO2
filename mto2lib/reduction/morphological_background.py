@@ -13,14 +13,14 @@ def estimate_structural_background(image, maxtree):
     mb_area = maxtree.area[main_branch]
     mb_volume = maxtree.volume[main_branch]
     mb_altitudes = maxtree.altitudes[main_branch]
-    mb_distance_to_root = maxtree.distance_to_root_center[main_branch]
+    # mb_distance_to_root = maxtree.distance_to_root_center[main_branch]
 
     features = [
         mb_topological_height,
-        mb_area,
-        mb_volume,
-        mb_altitudes,
-        mb_distance_to_root
+        np.log10(mb_area),
+        np.log10(mb_volume),
+        np.log10(mb_altitudes),
+        # mb_distance_to_root
     ]
 
     filtered_features = [feature for feature in features if not np.isnan(feature).any()]
@@ -37,7 +37,7 @@ def estimate_structural_background(image, maxtree):
 
         except Exception as e:
 
-            all_labels = ml_uts.binary_cluster_bg_structure_minibatch(
+            all_labels = ml_uts.fuzz_bg_structure(
                 filtered_features,
                 ~main_branch,
                 maxtree.altitudes

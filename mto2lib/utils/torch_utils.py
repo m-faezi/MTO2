@@ -5,10 +5,10 @@ import numpy as np
 
 def pytorch_kmeans_bg_structure(
         bg_candidate_features,
-        non_bool_unique_topological_height,
+        main_branch,
         altitudes,
         max_iters=100,
-        tol=1e-4
+        tol=0
 ):
 
     masked_features = np.vstack(bg_candidate_features).T
@@ -47,18 +47,18 @@ def pytorch_kmeans_bg_structure(
 
     labels_np = labels.numpy()
     all_labels = np.zeros(altitudes.size, dtype=int)
-    all_labels[~non_bool_unique_topological_height] = labels_np
+    all_labels[main_branch] = labels_np
 
     return all_labels
 
 
 def pytorch_fuzzy_c_means(
         bg_candidate_features,
-        non_bool_unique_topological_height,
+        main_branch,
         altitudes,
         m=2.0,
         max_iters=100,
-        tol=1e-4
+        tol=0
 ):
 
     masked_features = np.vstack(bg_candidate_features).T
@@ -98,7 +98,7 @@ def pytorch_fuzzy_c_means(
     labels_np = labels.numpy()
 
     all_labels = np.zeros(altitudes.size, dtype=int)
-    all_labels[~non_bool_unique_topological_height] = labels_np
+    all_labels[main_branch] = labels_np
 
     return all_labels
 

@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler
 
 
 
-def fuzz_bg_structure(bg_candidate_features, non_bool_unique_topological_height, altitudes):
+def fuzz_bg_structure(bg_candidate_features, main_branch, altitudes):
 
     masked_features = np.vstack(bg_candidate_features).T
     scaler = StandardScaler()
@@ -19,12 +19,12 @@ def fuzz_bg_structure(bg_candidate_features, non_bool_unique_topological_height,
     labels = fcm.predict(reduced_features)
     labels_array = np.array(labels)
     all_labels = np.zeros(altitudes.size)
-    all_labels[~non_bool_unique_topological_height] = labels_array
+    all_labels[main_branch] = labels_array
 
     return all_labels
 
 
-def binary_cluster_bg_structure(bg_candidate_features, non_bool_unique_topological_height, altitudes):
+def binary_cluster_bg_structure(bg_candidate_features, main_branch, altitudes):
 
     masked_features = np.vstack(bg_candidate_features).T
     scaler = StandardScaler()
@@ -35,12 +35,12 @@ def binary_cluster_bg_structure(bg_candidate_features, non_bool_unique_topologic
     kmeans.fit(reduced_features)
     labels = kmeans.labels_
     all_labels = np.zeros(altitudes.size, dtype=int)
-    all_labels[~non_bool_unique_topological_height] = labels
+    all_labels[main_branch] = labels
 
     return all_labels
 
 
-def binary_cluster_bg_structure_minibatch(bg_candidate_features, non_bool_unique_topological_height, altitudes):
+def binary_cluster_bg_structure_minibatch(bg_candidate_features, main_branch, altitudes):
 
     masked_features = np.vstack(bg_candidate_features).T
     scaler = StandardScaler()
@@ -51,7 +51,7 @@ def binary_cluster_bg_structure_minibatch(bg_candidate_features, non_bool_unique
     kmeans.fit(reduced_features)
     labels = kmeans.labels_
     all_labels = np.zeros(altitudes.size, dtype=int)
-    all_labels[~non_bool_unique_topological_height] = labels
+    all_labels[main_branch] = labels
 
     return all_labels
 
