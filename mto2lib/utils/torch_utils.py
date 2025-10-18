@@ -47,7 +47,7 @@ def pytorch_kmeans_bg_structure(
 
     labels_np = labels.numpy()
     all_labels = np.zeros(altitudes.size, dtype=int)
-    all_labels[main_branch] = labels_np
+    all_labels[~main_branch] = labels_np
 
     return all_labels
 
@@ -98,7 +98,7 @@ def pytorch_fuzzy_c_means(
     labels_np = labels.numpy()
 
     all_labels = np.zeros(altitudes.size, dtype=int)
-    all_labels[main_branch] = labels_np
+    all_labels[~main_branch] = labels_np
 
     return all_labels
 

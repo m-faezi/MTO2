@@ -19,7 +19,7 @@ def fuzz_bg_structure(bg_candidate_features, main_branch, altitudes):
     labels = fcm.predict(reduced_features)
     labels_array = np.array(labels)
     all_labels = np.zeros(altitudes.size)
-    all_labels[main_branch] = labels_array
+    all_labels[~main_branch] = labels_array
 
     return all_labels
 
@@ -35,7 +35,7 @@ def binary_cluster_bg_structure(bg_candidate_features, main_branch, altitudes):
     kmeans.fit(reduced_features)
     labels = kmeans.labels_
     all_labels = np.zeros(altitudes.size, dtype=int)
-    all_labels[main_branch] = labels
+    all_labels[~main_branch] = labels
 
     return all_labels
 
@@ -51,7 +51,7 @@ def binary_cluster_bg_structure_minibatch(bg_candidate_features, main_branch, al
     kmeans.fit(reduced_features)
     labels = kmeans.labels_
     all_labels = np.zeros(altitudes.size, dtype=int)
-    all_labels[main_branch] = labels
+    all_labels[~main_branch] = labels
 
     return all_labels
 
