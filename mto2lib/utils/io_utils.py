@@ -9,7 +9,7 @@ def save_run_metadata(run):
     metadata = {
         "software": "MTO2",
         "version": "1.0.0",
-        "time_stamp": run.arguments.time_stamp,
+        "time_stamp": run.time_stamp,
         "file_name": os.path.splitext(os.path.basename(run.arguments.file_path))[0],
         "arguments": {
             "background_mode": run.arguments.background_mode,
@@ -39,7 +39,7 @@ def save_run_record(run):
     run_csv_path = os.path.join("./results", "your_runs.csv")
 
     run_record = {
-        "run_id": run.arguments.time_stamp,
+        "run_id": run.time_stamp,
         "file_name": os.path.splitext(os.path.basename(run.arguments.file_path))[0],
         "background_mode": run.arguments.background_mode,
         "move_factor": run.arguments.move_factor,
@@ -55,9 +55,9 @@ def save_run_record(run):
         try:
             existing_df = pd.read_csv(run_csv_path)
 
-            if run.arguments.time_stamp in existing_df['run_id'].values:
+            if run.time_stamp in existing_df['run_id'].values:
 
-                existing_df.loc[existing_df['run_id'] == run.arguments.time_stamp, 'status'] = run.status
+                existing_df.loc[existing_df['run_id'] == run.time_stamp, 'status'] = run.status
                 updated_df = existing_df
 
             else:

@@ -14,7 +14,7 @@ class Extractor:
             tree.tree_structure,
             tree.corrected_segments,
             image.header,
-            run.arguments
+            run
         )
 
         return self
@@ -30,6 +30,7 @@ class Extractor:
             maxtree.area,
             extractor.ids,
             run.arguments,
+            run
         )
 
         return self

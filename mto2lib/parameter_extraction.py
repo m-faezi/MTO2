@@ -12,7 +12,7 @@ def extract_parameters(
         parent_altitude,
         area,
         unique_segment_ids,
-        arguments,
+        run
 ):
 
     print("Extracting parameters...")
@@ -47,7 +47,7 @@ def extract_parameters(
     a, b, theta = uts.second_order_moments(tree_of_segments, image.shape[:2], image)
     flux = hg.accumulate_sequential(tree_of_segments, image, hg.Accumulators.sum)
 
-    results_dir = os.path.join("./results", arguments.time_stamp)
+    results_dir = os.path.join("./results", run.time_stamp)
     output_csv = os.path.join(results_dir, "parameters.csv")
 
     uts.save_parameters(
