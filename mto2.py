@@ -35,7 +35,7 @@ def execute_run():
 
                 run.arguments.background_mode = 'morph'
 
-                print(f"Note: Background mode switched from 'const' to '{run.arguments.background_mode}'!")
+                print(f"Note: Background mode switched to '{run.arguments.background_mode}'!")
 
                 maxtree = MaxTree()
                 maxtree.construct_max_tree(image.smooth_image)
