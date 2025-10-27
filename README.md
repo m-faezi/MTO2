@@ -8,7 +8,7 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)](https://pytorch.org/)
 
 
-MTO2 is a photometric object (e.g., [LSB galaxies](https://en.wikipedia.org/wiki/Low_surface_brightness_galaxy)) detection and extraction software, representing and processing on max-tree ([Salembier et al.](#4)) data structure.
+MTO2 is a photometric object (e.g., [LSB galaxies](https://en.wikipedia.org/wiki/Low_surface_brightness_galaxy)) detection and extraction software, representing and processing on max-tree ([Salembier et al.](#3)) data structure.
 
 - **Background estimation**: Robust constant and/or morphological background subtraction(s).
 - **Detection**: Detects faint complex emissions; statistically significant.
@@ -145,8 +145,7 @@ This implementation draws inspiration from [Caroline Haigh's work ](https://gith
 
 - <a id="1">Teeninga P., Moschini U., Trager S. C., et al. (2016). “Statistical attribute filtering to detect faint extended astronomical sources”. In: *Mathematical Morphology &mdash; Theory and Applications* 1.1. DOI: [10.1515/mathm-2016-0006](https://doi.org/10.1515/mathm-2016-0006).</a>
 - <a id="2">Haigh C., Chamba N., Vanhola A., et al. (2021). “Optimising and comparing source-extraction tools using objective segmentation quality criteria”. In: *Astronomy & Astrophysics* 645. DOI: [10.1051/0004-6361/201936561](https://doi.org/10.1051/0004-6361/201936561).</a>
-- <a id="3">Faezi M. H., Peletier R., & Wilkinson M. H. (2024). “Multi-Spectral Source-Segmentation Using Semantically-Informed Max-Trees”. In: *IEEE Access* 12, pp. 72288 - 72302. DOI: [10.1109/ACCESS.2024.3403309](https://doi.org/10.1109/ACCESS.2024.3403309).</a>
-- <a id="4">Salembier P., Oliveras A., & Garrido L. (1998). “Antiextensive connected operators for image and sequence processing”. In: *IEEE Transactions on Image Processing* 7.4, pp. 555–570. DOI: [10.1109/83.663500](https://doi.org/10.1109/83.663500).</a>
+- <a id="3">Salembier P., Oliveras A., & Garrido L. (1998). “Antiextensive connected operators for image and sequence processing”. In: *IEEE Transactions on Image Processing* 7.4, pp. 555–570. DOI: [10.1109/83.663500](https://doi.org/10.1109/83.663500).</a>
 
 ## License
 
