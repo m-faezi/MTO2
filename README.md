@@ -46,6 +46,10 @@ Arguments are available to refine the segmentation map:
 - **`area_ratio`**: Corrects deblending by evaluating area size relationships between nodes and their parents
 - **`G_fit`**: Gaussian-fit attribute filtering
 
+<p align="center">
+    <img src="./assets/MTO2-flow.svg" alt="MTO2-flow" width="63.9%">
+</p>
+
 ##  Installation
 
 > [!TIP]
