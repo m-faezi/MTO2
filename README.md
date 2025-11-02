@@ -6,7 +6,7 @@
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-66ff00.svg)](https://github.com/m-faezi/MTO2/blob/main/CONTRIBUTING.md)
 [![Py3.13](https://img.shields.io/badge/Py-3.13+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)](https://pytorch.org/)
-[![Gitter](https://badges.gitter.im/your-repo/community.svg)](https://gitter.im/your-repo/community)
+
 
 MTO2 is a photometric object (e.g., [LSB galaxies](https://en.wikipedia.org/wiki/Low_surface_brightness_galaxy)) detection and extraction software, representing and processing on max-tree ([Salembier et al.](#3)) data structure.
 
