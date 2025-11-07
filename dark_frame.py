@@ -3,6 +3,7 @@ from mto2lib.utils import io_utils
 import os
 import numpy as np
 
+
 class DarkFrame:
 
     def __init__(self):
