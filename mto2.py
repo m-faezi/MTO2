@@ -41,6 +41,7 @@ def execute_run():
                 maxtree.construct_max_tree(image.smooth_image)
                 maxtree.compute_attributes(run, image)
                 dark_frame.estimate_morph_bg(image, maxtree)
+                dark_frame.create_reduced_image(image, run.results_dir)
 
         else:
 
@@ -48,10 +49,10 @@ def execute_run():
             maxtree.construct_max_tree(image.smooth_image)
             maxtree.compute_attributes(run, image)
             dark_frame.estimate_morph_bg(image, maxtree)
+            dark_frame.create_reduced_image(image, run.results_dir)
 
         io_utils.save_run_metadata(run)
         dark_frame.save_background(run.results_dir, image.header, run.arguments)
-        dark_frame.create_reduced_image(image, run.results_dir)
 
         maxtree.detect_significant_objects(dark_frame)
         maxtree.move_up(dark_frame, run)
