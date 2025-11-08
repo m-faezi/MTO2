@@ -49,6 +49,12 @@ def make_parser():
     )
 
     parser.add_argument(
+        '--skip_reduction',
+        action='store_true',
+        help='Runs without background reduction'
+    )
+
+    parser.add_argument(
         '--time_stamp',
         action='store_false',
         default=None,

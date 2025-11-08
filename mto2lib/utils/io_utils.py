@@ -17,6 +17,7 @@ def save_run_metadata(run):
             "area_ratio": run.arguments.area_ratio,
             "s_sigma": run.arguments.s_sigma,
             "G_fit": run.arguments.G_fit,
+            "skip_reduction": run.arguments.skip_reduction,
             "crop": run.arguments.crop
         }
     }
@@ -46,6 +47,7 @@ def save_run_record(run):
         "area_ratio": run.arguments.area_ratio,
         "s_sigma": run.arguments.s_sigma,
         "G_fit": run.arguments.G_fit,
+        "skip_reduction": run.arguments.skip_reduction,
         "crop": run.arguments.crop,
         "status": run.status,
     }
