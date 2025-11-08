@@ -79,6 +79,7 @@ python mto2.py image.fits
     --move_factor 0.1 
     --area_ratio 0.91  
     --G_fit 
+    --skip_reduction 
     --par_out 
     --background_mode const
     --crop 10 20 10000 20000
@@ -90,16 +91,17 @@ Get started with a demo in Google Colab:
 
 ### Command line arguments
 
-| Option                   | Description                                      | Type      | Default                    | Range/Values |
-|--------------------------|--------------------------------------------------|-----------|----------------------------|--------------|
-| `--s_sigma`              | Standard deviation for smoothing kernel          | float     | 2.00                       | ≥ 0          |
-| `--move_factor`          | Adjust the spread of objects                     | float     | 0.00                       | ≥ 0          |
-| `--area_ratio`           | Adjust deblending sensitivity                    | float     | 0.90                       | [0.0, 1.0)   |
-| `--par_out`              | Extract and save parameters in .csv format       | flag      | -                          | -            |
-| `--G_fit`                | Apply Gaussian-fit attribute filter              | flag      | -                          | -            |
-| `--background_mode`      | Select constant or morphological background      | choice    | const                      | const, morph |
-| `--crop`                 | Crops the image                                  | int[4]    | x_min  y_min  x_max  y_max | 0 0 -1 -1    |
-| `-h`, `--help`           | Show the help message and exit                   | flag      | -                          | -            |
+| Option              | Description                                 | Type      | Default                    | Range/Values |
+|---------------------|---------------------------------------------|-----------|----------------------------|--------------|
+| `--s_sigma`         | Standard deviation for smoothing kernel     | float     | 2.00                       | ≥ 0          |
+| `--move_factor`     | Adjust the spread of objects                | float     | 0.00                       | ≥ 0          |
+| `--area_ratio`      | Adjust deblending sensitivity               | float     | 0.90                       | [0.0, 1.0)   |
+| `--par_out`         | Extract and save parameters in .csv format  | flag      | -                          | -            |
+| `--G_fit`           | Apply Gaussian-fit attribute filter         | flag      | -                          | -            |
+| `--skip_reduction`  | Runs without background reduction           | flag      | -                          | -            |
+| `--background_mode` | Select constant or morphological background | choice    | const                      | const, morph |
+| `--crop`            | Crops the image                             | int[4]    | x_min  y_min  x_max  y_max | 0 0 -1 -1    |
+| `-h`, `--help`      | Show the help message and exit              | flag      | -                          | -            |
 
 ### Output formatting
 
@@ -128,6 +130,7 @@ The `run_metadata.json` file provides complete information about each run, inclu
     "area_ratio": 0.91,
     "s_sigma": 1.6,
     "G_fit": true,
+    "skip_reduction": true,
     "crop": [
       3100,
       3600,
