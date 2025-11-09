@@ -49,6 +49,8 @@ Arguments are available to refine the segmentation map:
 
 <p align="center">
     <img src="./assets/MTO2-flow.svg" alt="MTO2-flow" width="63.9%">
+    <br>
+    <em>MTO2</em> processing pipeline workflow.
 </p>
 
 ##  Installation
