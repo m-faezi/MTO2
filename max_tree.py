@@ -45,9 +45,9 @@ class MaxTree:
         return self
 
 
-    def detect_significant_objects(self, dark_frame):
+    def detect_significant_objects(self, dark_frame, run):
 
-        self.significant_nodes = statistical_tests.attribute_statistical_significance(self, dark_frame)
+        self.significant_nodes = statistical_tests.attribute_statistical_significance(self, dark_frame, run)
         self.init_segments = statistical_tests.select_objects(self)
 
         return self
@@ -83,28 +83,14 @@ class MaxTree:
 
         target_altitudes = target_altitudes[closest_object_ancestor]
 
-        if not run.arguments.G_fit:
-
-            valid_moves = np.logical_and(
-                self.altitudes >= target_altitudes,
-                np.logical_and(
-                    self.init_segments[closest_object_ancestor],
-                    self.area / self.parent_area >= run.arguments.area_ratio
-                )
+        valid_moves = np.logical_and(
+            self.altitudes >= target_altitudes,
+            np.logical_and(
+                self.init_segments[closest_object_ancestor],
+                self.area / self.parent_area >= run.arguments.area_ratio
             )
+        )
 
-        elif run.arguments.G_fit:
-
-            valid_moves = np.logical_and(
-                np.logical_and(
-                    self.altitudes >= target_altitudes,
-                    np.logical_and(
-                        self.init_segments[closest_object_ancestor],
-                        self.area / self.parent_area >= run.arguments.area_ratio
-                    )
-                ),
-                self.altitudes / self.area >= self.gaussian_intensities
-            )
 
         parent_closest_object_ancestor = closest_object_ancestor[self.tree_structure.parents()]
         parent_not_valid_moves = np.logical_not(valid_moves[self.tree_structure.parents()])

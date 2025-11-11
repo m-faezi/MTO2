@@ -69,7 +69,7 @@ def execute_run():
         io_utils.save_run_metadata(run)
         dark_frame.save_background(run.results_dir, image.header, run.arguments)
 
-        maxtree.detect_significant_objects(dark_frame)
+        maxtree.detect_significant_objects(dark_frame, run)
         maxtree.move_up(dark_frame, run)
 
         extractor = Extractor()
