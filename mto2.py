@@ -33,7 +33,7 @@ def execute_run():
                 dark_frame.create_reduced_image(image, run.results_dir)
 
                 maxtree = MaxTree()
-                maxtree.construct_max_tree(image.reduced_image)
+                maxtree.construct_max_tree(image.smooth_reduced_image)
                 maxtree.compute_attributes(run, image)
 
             except Exception as e:

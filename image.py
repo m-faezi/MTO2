@@ -8,6 +8,7 @@ class Image:
         self.image = None
         self.smooth_image = None
         self.reduced_image = None
+        self.smooth_reduced_image = None
         self.header = None
 
     def get_image(self, run):
