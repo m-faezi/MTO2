@@ -142,6 +142,22 @@ The `run_metadata.json` file provides complete information about each run, inclu
   }
 }
 ```
+## Citation
+
+If you use MTO2 in your research, please cite the following paper:
+
+```bibtex
+@ARTICLE{10535192,
+  author={Hashem Faezi, Mohammad and Peletier, Reynier and Wilkinson, Michael H. F.},
+  journal={IEEE Access}, 
+  title={Multi-Spectral Source-Segmentation Using Semantically-Informed Max-Trees}, 
+  year={2024},
+  volume={12},
+  number={},
+  pages={72288-72302},
+  doi={10.1109/ACCESS.2024.3403309}
+}
+```
 
 ## Acknowledgments
 
