@@ -75,7 +75,8 @@ class MaxTree:
                     dark_frame.bg_var + self.altitudes[self.tree_structure.parent(object_indexes)],
                     0
                 ) / dark_frame.bg_gain,
-                0
+                # 0
+                1e-10
             )
         )
 
