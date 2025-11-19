@@ -19,7 +19,8 @@ def estimate_structural_background(image, maxtree):
         mb_topological_height,
         np.log10(mb_area),
         np.log10(mb_volume),
-        np.log10(mb_altitudes),
+        # np.log10(mb_altitudes),
+        mb_altitudes,
         # mb_distance_to_root
     ]
 
