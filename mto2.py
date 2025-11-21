@@ -28,7 +28,7 @@ def execute_run():
 
                 if run.arguments.skip_reduction:
 
-                    dark_frame.bg_mean = 0
+                    dark_frame.bg_map = 0
 
                 dark_frame.create_reduced_image(image, run.results_dir)
 
@@ -38,10 +38,6 @@ def execute_run():
 
             except Exception as e:
 
-                run.arguments.background_mode = 'morph'
-
-                print(f"Note: Background mode switched to '{run.arguments.background_mode}'!")
-
                 maxtree = MaxTree()
                 maxtree.construct_max_tree(image.smooth_image)
                 maxtree.compute_attributes(run, image)
@@ -49,7 +45,11 @@ def execute_run():
 
                 if run.arguments.skip_reduction:
 
-                    dark_frame.bg_mean = 0
+                    dark_frame.bg_map = 0
+
+                else:
+
+                    dark_frame.bg_map = dark_frame.bg_mean
 
                 dark_frame.create_reduced_image(image, run.results_dir)
 
@@ -62,7 +62,7 @@ def execute_run():
 
             if run.arguments.skip_reduction:
 
-                dark_frame.bg_mean = 0
+                dark_frame.bg_map = 0
 
             dark_frame.create_reduced_image(image, run.results_dir)
 

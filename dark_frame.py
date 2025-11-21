@@ -39,8 +39,8 @@ class DarkFrame:
 
     def create_reduced_image(self, image, results_dir):
 
-        image.reduced_image = image.image - np.max(self.bg_mean, 0)
-        image.smooth_reduced_image = image.smooth_image - np.max(self.bg_mean, 0)
+        image.reduced_image = image.image - np.max(self.bg_map, 0)
+        image.smooth_reduced_image = image.smooth_image - np.max(self.bg_map, 0)
         reduced_output = os.path.join(results_dir, "reduced.fits")
 
         io_utils.save_fits_with_header(image.reduced_image, image.header, reduced_output)
