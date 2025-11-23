@@ -3,7 +3,7 @@ from dark_frame import DarkFrame
 from run import Run
 from max_tree import MaxTree
 from extractor import Extractor
-
+import numpy as np
 from mto2lib.utils import io_utils
 import sys
 
@@ -28,7 +28,7 @@ def execute_run():
 
                 if run.arguments.skip_reduction:
 
-                    dark_frame.bg_map = 0
+                    dark_frame.bg_map = np.full_like(image.image, 0, dtype=np.float32)
 
                 dark_frame.create_reduced_image(image, run.results_dir)
 
@@ -45,11 +45,11 @@ def execute_run():
 
                 if run.arguments.skip_reduction:
 
-                    dark_frame.bg_map = 0
+                    dark_frame.bg_map = np.full_like(image.image, 0, dtype=np.float32)
 
                 else:
 
-                    dark_frame.bg_map = dark_frame.bg_mean
+                    dark_frame.bg_map = np.full_like(image.image, dark_frame.bg_mean, dtype=np.float32)
 
                 dark_frame.create_reduced_image(image, run.results_dir)
 
@@ -62,7 +62,7 @@ def execute_run():
 
             if run.arguments.skip_reduction:
 
-                dark_frame.bg_map = 0
+                dark_frame.bg_map = np.full_like(image.image, 0, dtype=np.float32)
 
             dark_frame.create_reduced_image(image, run.results_dir)
 
