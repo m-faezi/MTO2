@@ -10,6 +10,7 @@ def compute_attributes(tree_structure, altitudes, run, image):
     distance_to_root_center = np.sqrt((x[tree_structure.root()] - x) ** 2 + (y[tree_structure.root()] - y) ** 2)
     mean, variance = hg.attribute_gaussian_region_weights_model(tree_structure, image.image)
     area = hg.attribute_area(tree_structure)
+    convexness = hg.attribute_compactness(tree_structure, area=area, normalize=True)
     parent_area = area[tree_structure.parents()]
     parent_altitude = altitudes[tree_structure.parents()]
 
@@ -30,5 +31,5 @@ def compute_attributes(tree_structure, altitudes, run, image):
     parent_gamma = gamma[tree_structure.parents()]
 
     return (x, y, distances, distance_to_root_center, mean, variance, area, parent_area, gaussian_intensities, volume,
-            parent_altitude, gamma, parent_gamma)
+            parent_altitude, gamma, parent_gamma, convexness)
 

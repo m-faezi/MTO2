@@ -11,6 +11,7 @@ def extract_parameters(
         n_map_segments,
         parent_altitude,
         area,
+        convexness,
         parent_area,
         unique_segment_ids,
         run
@@ -61,6 +62,7 @@ def extract_parameters(
         flux[tree_of_segments.num_leaves():][::-1] -
         ((parent_altitude/parent_area)*area)[n_map_segments][tree_of_segments.num_leaves():][::-1],
         area[n_map_segments][tree_of_segments.num_leaves():][::-1],
+        convexness[n_map_segments][tree_of_segments.num_leaves():][::-1],
         a[tree_of_segments.num_leaves():][::-1],
         b[tree_of_segments.num_leaves():][::-1],
         theta[tree_of_segments.num_leaves():][::-1],

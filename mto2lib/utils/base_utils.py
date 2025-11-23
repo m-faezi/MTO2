@@ -204,7 +204,7 @@ def sky_coordinates(y, x, header):
     return ra, dec
 
 
-def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta, r_eff, r_fwhm,  file_name):
+def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, convexness, a, b, theta, r_eff, r_fwhm,  file_name):
 
     parameters_df = pd.DataFrame(
         {
@@ -216,6 +216,7 @@ def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, a, b, theta,
             "Flux": flux[1:],
             "Flux_Calibrated": flux_calibrated[1:],
             "Area": area[1:],
+            "Convexness": convexness[1:],
             "a": a[1:],
             "b": b[1:],
             "Theta": theta[1:],
