@@ -75,6 +75,14 @@ def execute_run():
         extractor = Extractor()
         extractor.create_segmentation(maxtree, image, run)
 
+        dark_frame.create_cali_base(
+            extractor.maxtree_of_segment,
+            extractor.segment_node_map,
+            maxtree,
+            run.results_dir,
+            image.header
+        )
+
         if run.arguments.par_out:
 
             extractor.extract_parameters(extractor, maxtree, run, image)

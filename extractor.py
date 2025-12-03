@@ -30,6 +30,7 @@ class Extractor:
             maxtree.area,
             maxtree.convexness,
             maxtree.parent_area,
+            maxtree.intensity_base,
             extractor.ids,
             run
         )

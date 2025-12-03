@@ -1,5 +1,6 @@
 from mto2lib import preprocessing
 from mto2lib.utils import io_utils
+from mto2lib.utils import base_utils
 import os
 import numpy as np
 
@@ -11,6 +12,7 @@ class DarkFrame:
         self.bg_var = None
         self.bg_gain = None
         self.bg_map = None
+        self.cali_base = None
 
     def estimate_const_bg(self, smooth_image):
 
@@ -48,4 +50,14 @@ class DarkFrame:
         print(f"Saved reduced image to: {reduced_output}")
 
         return self
+
+    def create_cali_base(self, tree_of_segments, n_map_segments, maxtree, results_dir, header):
+
+        self.cali_base = base_utils.set_calibration_base(tree_of_segments, n_map_segments, maxtree)
+
+        reduced_output = os.path.join(results_dir, "cali_base.fits")
+
+        io_utils.save_fits_with_header(self.cali_base, header, reduced_output)
+
+        print(f"Saved calibration base to: {reduced_output}")
 

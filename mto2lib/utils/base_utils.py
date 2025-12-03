@@ -296,3 +296,8 @@ def second_order_moments(tree, size, image):
 
     return major_axis, minor_axis, theta
 
+
+def set_calibration_base(tree_of_segments, n_map_segments, maxtree):
+
+    return hg.reconstruct_leaf_data(tree_of_segments, maxtree.intensity_base[n_map_segments])
+
