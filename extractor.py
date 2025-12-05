@@ -26,11 +26,9 @@ class Extractor:
             image.header,
             extractor.maxtree_of_segment,
             extractor.segment_node_map,
-            maxtree.parent_altitude,
+            maxtree.altitudes,
             maxtree.area,
             maxtree.convexness,
-            maxtree.parent_area,
-            maxtree.intensity_base,
             extractor.ids,
             run
         )

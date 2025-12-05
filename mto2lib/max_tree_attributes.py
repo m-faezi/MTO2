@@ -29,8 +29,7 @@ def compute_attributes(tree_structure, altitudes, run, image):
     volume = hg.attribute_volume(tree_structure, altitudes)
     gamma = hg.attribute_topological_height(tree_structure)
     parent_gamma = gamma[tree_structure.parents()]
-    intensity_base = (parent_altitude/parent_area)*area
 
     return (x, y, distances, distance_to_root_center, mean, variance, area, parent_area, gaussian_intensities, volume,
-            parent_altitude, gamma, parent_gamma, convexness, intensity_base)
+            parent_altitude, gamma, parent_gamma, convexness)
 
