@@ -55,9 +55,8 @@ class DarkFrame:
 
         self.cali_base = base_utils.set_calibration_base(tree_of_segments, n_map_segments, maxtree)
 
-        reduced_output = os.path.join(results_dir, "cali_base.fits")
+        cali_base_output = os.path.join(results_dir, "cali_base.fits")
+        io_utils.save_fits_with_header(self.cali_base, header, cali_base_output)
 
-        io_utils.save_fits_with_header(self.cali_base, header, reduced_output)
-
-        print(f"Saved calibration base to: {reduced_output}")
+        print(f"Saved calibration base to: {cali_base_output}")
 
