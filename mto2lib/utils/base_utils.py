@@ -240,6 +240,7 @@ def save_parameters(
         r_fwhm,
         mean_pix,
         median_pix,
+        parent_segment_id,
         file_name
 ):
 
@@ -261,6 +262,7 @@ def save_parameters(
             "R_fwhm": r_fwhm[1:],
             "Mean": mean_pix[1:],
             "Median": median_pix[1:],
+            "P_ID": parent_segment_id[1:]
         }
     )
 

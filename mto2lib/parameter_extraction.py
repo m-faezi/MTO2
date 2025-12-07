@@ -13,6 +13,7 @@ def extract_parameters(
         area,
         convexness,
         unique_segment_ids,
+        parent_segment_ids,
         run
 ):
 
@@ -73,6 +74,7 @@ def extract_parameters(
         r_fwhm[::-1],
         mean_pixel[::-1],
         median_pixel[::-1],
+        parent_segment_ids[tree_of_segments.num_leaves():][::-1],
         file_name=output_csv
     )
 
