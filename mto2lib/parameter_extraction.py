@@ -38,6 +38,10 @@ def extract_parameters(
     r_eff = [uts.half_light_radius(image, coords) for coords in coords_per_segment]
     r_fwhm = [uts.compute_r_fwhm(image, coords) for coords in coords_per_segment]
 
+    mean_median_vals = [uts.compute_segment_mean_median(image, coords) for coords in coords_per_segment]
+    mean_pixel = [val[0] for val in mean_median_vals]
+    median_pixel = [val[1] for val in mean_median_vals]
+
     centroids = [uts.weighted_centroid_coords_from_segments(image, coords) for coords in coords_per_segment]
 
     y = [cen[0] for cen in centroids]
@@ -67,6 +71,8 @@ def extract_parameters(
         theta[tree_of_segments.num_leaves():][::-1],
         r_eff[::-1],
         r_fwhm[::-1],
+        mean_pixel[::-1],
+        median_pixel[::-1],
         file_name=output_csv
     )
 

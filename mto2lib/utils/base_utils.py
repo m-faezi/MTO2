@@ -165,6 +165,25 @@ def compute_r_fwhm(image, coords):
     return r_fwhm
 
 
+def compute_segment_mean_median(image, coords):
+    """Compute mean and median pixel values for a segment"""
+
+    if not coords:
+
+        return 0.0, 0.0
+
+    intensities = np.array([image[y, x] for y, x in coords])
+
+    if len(intensities) == 0:
+
+        return 0.0, 0.0
+
+    mean_val = np.mean(intensities)
+    median_val = np.median(intensities)
+
+    return mean_val, median_val
+
+
 def get_main_branch(array):
 
     unique, counts = np.unique(array, return_counts=True)
@@ -204,7 +223,25 @@ def sky_coordinates(y, x, header):
     return ra, dec
 
 
-def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, convexness, a, b, theta, r_eff, r_fwhm,  file_name):
+def save_parameters(
+        id,
+        x,
+        y,
+        ra,
+        dec,
+        flux,
+        flux_calibrated,
+        area,
+        convexness,
+        a,
+        b,
+        theta,
+        r_eff,
+        r_fwhm,
+        mean_pix,
+        median_pix,
+        file_name
+):
 
     parameters_df = pd.DataFrame(
         {
@@ -222,6 +259,8 @@ def save_parameters(id, x, y, ra, dec, flux, flux_calibrated, area, convexness, 
             "Theta": theta[1:],
             "R_eff": r_eff[1:],
             "R_fwhm": r_fwhm[1:],
+            "Mean": mean_pix[1:],
+            "Median": median_pix[1:],
         }
     )
 
