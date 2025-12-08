@@ -180,8 +180,10 @@ def compute_segment_mean_median(image, coords):
 
     mean_val = np.mean(intensities)
     median_val = np.median(intensities)
+    min_val = np.min(intensities)
+    max_val = np.max(intensities)
 
-    return mean_val, median_val
+    return mean_val, median_val, min_val, max_val
 
 
 def get_main_branch(array):
@@ -239,7 +241,10 @@ def save_parameters(
         r_eff,
         r_fwhm,
         mean_pix,
+        variance,
         median_pix,
+        min_pix,
+        max_pix,
         parent_segment_id,
         file_name
 ):
@@ -261,7 +266,10 @@ def save_parameters(
             "R_eff": r_eff[1:],
             "R_fwhm": r_fwhm[1:],
             "Mean": mean_pix[1:],
+            "Variance": variance[1:],
             "Median": median_pix[1:],
+            "Min": min_pix[1:],
+            "Max": max_pix[1:],
             "P_ID": parent_segment_id[1:]
         }
     )

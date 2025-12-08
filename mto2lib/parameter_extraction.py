@@ -11,6 +11,7 @@ def extract_parameters(
         n_map_segments,
         altitudes,
         area,
+        variance,
         convexness,
         unique_segment_ids,
         parent_segment_ids,
@@ -39,9 +40,11 @@ def extract_parameters(
     r_eff = [uts.half_light_radius(image, coords) for coords in coords_per_segment]
     r_fwhm = [uts.compute_r_fwhm(image, coords) for coords in coords_per_segment]
 
-    mean_median_vals = [uts.compute_segment_mean_median(image, coords) for coords in coords_per_segment]
-    mean_pixel = [val[0] for val in mean_median_vals]
-    median_pixel = [val[1] for val in mean_median_vals]
+    segment_stats = [uts.compute_segment_mean_median(image, coords) for coords in coords_per_segment]
+    mean_pixel = [val[0] for val in segment_stats]
+    median_pixel = [val[1] for val in segment_stats]
+    min_pixel = [val[2] for val in segment_stats]
+    max_pixel = [val[3] for val in segment_stats]
 
     centroids = [uts.weighted_centroid_coords_from_segments(image, coords) for coords in coords_per_segment]
 
@@ -73,7 +76,10 @@ def extract_parameters(
         r_eff[::-1],
         r_fwhm[::-1],
         mean_pixel[::-1],
+        variance[n_map_segments][tree_of_segments.num_leaves():][::-1],
         median_pixel[::-1],
+        min_pixel[::-1],
+        max_pixel[::-1],
         parent_segment_ids[tree_of_segments.num_leaves():][::-1],
         file_name=output_csv
     )

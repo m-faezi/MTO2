@@ -29,6 +29,7 @@ class Extractor:
             extractor.segment_node_map,
             maxtree.altitudes,
             maxtree.area,
+            maxtree.variance,
             maxtree.convexness,
             extractor.ids,
             extractor.parent_segment_ids,
