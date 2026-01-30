@@ -9,7 +9,7 @@ def attribute_statistical_significance(maxtree, dark_frame, run, alpha=1e-6):
                    (dark_frame.bg_gain + np.finfo(np.float32).eps))
 
     safe_denominator = np.where(denominator == 0, np.finfo(np.float32).eps, denominator)
-    # maxtree.volume /= safe_denominator
+    maxtree.volume /= safe_denominator
 
     if run.arguments.G_fit:
 

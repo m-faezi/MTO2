@@ -159,8 +159,7 @@ def est_mean_and_variance_gain(img, tile_length, usable):
 
     bg_mean = np.nanmean(total_bg, axis=None)
     bg_var = np.nanvar(total_bg, axis=None)
-    # gain = np.where(bg_var != 0, (bg_mean - soft_bias) / np.float32(bg_var), 0)
-    gain = (bg_mean - soft_bias) / np.float32(bg_var)
+    gain = np.where(bg_var != 0, (bg_mean - soft_bias) / np.float32(bg_var), 0)
 
     return bg_mean, bg_var, gain
 
