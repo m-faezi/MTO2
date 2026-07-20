@@ -47,23 +47,36 @@ def validate_crop_coordinates(value, image_shape):
         height, width = image_shape
         x1, y1, x2, y2 = value
 
-        x1 = x1 if x1 >= 0 else width+x1
-        x2 = x2 if x2 >= 0 else width+x2
-        y1 = y1 if y1 >= 0 else height+y1
-        y2 = y2 if y2 >= 0 else height+y2
-
         if x1 >= x2 or y1 >= y2:
+            raise ValueError("Coordinates must form a valid rectangle")
 
-            raise ValueError("Coordinates must form a valid rectangle (x1 < x2, y1 < y2)")
+        x1 = x1 - 1
+        y1 = y1 - 1
+        x2 = x2 - 1
+        y2 = y2 - 1
 
-        if x1 < 0 or y1 < 0:
+        if x1 < 0:
+            x1 = width + x1 + 1
+        if x2 < 0:
+            x2 = width + x2 + 1
+        if y1 < 0:
+            y1 = height + y1 + 1
+        if y2 < 0:
+            y2 = height + y2 + 1
 
-            raise ValueError("Coordinates must be non-negative")
+        x1 = max(0, min(x1, width - 1))
+        x2 = max(0, min(x2, width - 1))
+        y1 = max(0, min(y1, height - 1))
+        y2 = max(0, min(y2, height - 1))
 
-        return x1, y1, x2, y2
+        if x1 > x2:
+            x1, x2 = x2, x1
+        if y1 > y2:
+            y1, y2 = y2, y1
 
-    except ValueError as e:
+        return int(x1), int(y1), int(x2), int(y2)
 
+    except (ValueError, TypeError) as e:
         raise argparse.ArgumentTypeError(f"Invalid crop coordinates '{value}': {e}. Format: x1 y1 x2 y2")
 
 
