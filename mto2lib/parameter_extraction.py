@@ -66,8 +66,8 @@ def extract_parameters(
         ra[::-1],
         dec[::-1],
         flux[tree_of_segments.num_leaves():][::-1],
-        flux[tree_of_segments.num_leaves():][::-1] -
-        np.abs((altitudes/area)[n_map_segments][tree_of_segments.num_leaves():][::-1]),
+        # flux[tree_of_segments.num_leaves():][::-1] -
+        # np.abs((altitudes/area)[n_map_segments][tree_of_segments.num_leaves():][::-1]),
         area[n_map_segments][tree_of_segments.num_leaves():][::-1],
         convexness[n_map_segments][tree_of_segments.num_leaves():][::-1],
         a[tree_of_segments.num_leaves():][::-1],
