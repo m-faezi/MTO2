@@ -138,21 +138,33 @@ def apply_crop(image, header, crop_coords):
 
         for key in header:
             if not key.startswith(('CRPIX', 'CDELT', 'CRVAL', 'CUNIT', 'CTYPE',
-                                   'CD', 'PC', 'WCS', 'NAXIS', 'LTM', 'LTV')):
-                if key not in new_header:
+                                   'CD', 'PC', 'WCS', 'LTM', 'LTV')):
+
+                if key not in ['NAXIS1', 'NAXIS2'] and key not in new_header:
                     new_header[key] = header[key]
 
         header = new_header
 
+        header['NAXIS1'] = x2 - x1
+        header['NAXIS2'] = y2 - y1
+
     except Exception as e:
         print(f"Warning: WCS update with astropy failed: {e}. Using manual update.")
+
         if 'CRPIX1' in header:
             header['CRPIX1'] = header.get('CRPIX1', 1) - x1
         if 'CRPIX2' in header:
             header['CRPIX2'] = header.get('CRPIX2', 1) - y1
 
-    header['NAXIS1'] = x2 - x1
-    header['NAXIS2'] = y2 - y1
+        if 'NAXIS1' in header:
+            header['NAXIS1'] = x2 - x1
+        else:
+            header['NAXIS1'] = x2 - x1
+
+        if 'NAXIS2' in header:
+            header['NAXIS2'] = y2 - y1
+        else:
+            header['NAXIS2'] = y2 - y1
 
     return cropped_image, header
 
