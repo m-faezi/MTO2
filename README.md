@@ -101,7 +101,7 @@ Get started with a demo in Google Colab:
 | `--area_ratio`      | Adjust deblending sensitivity               | float     | 0.90                       | [0.0, 1.0)   |
 | `--par_out`         | Extract and save parameters in .csv format  | flag      | -                          | -            |
 | `--G_fit`           | Apply Gaussian-fit attribute filter         | flag      | -                          | -            |
-| `--skip_reduction`  | Runs without background reduction           | flag      | -                          | -            |
+| `--reduce`          | Runs with background reduction              | flag      | -                          | -            |
 | `--background_mode` | Select constant or morphological background | choice    | const                      | const, morph |
 | `--crop`            | Crops the image                             | int[4]    | x_min  y_min  x_max  y_max | 0 0 -1 -1    |
 | `-h`, `--help`      | Show the help message and exit              | flag      | -                          | -            |
