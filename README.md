@@ -82,7 +82,7 @@ python mto2.py image.fits
     --move_factor 0.1 
     --area_ratio 0.91  
     --G_fit 
-    --skip_reduction 
+    --reduce 
     --par_out 
     --background_mode const
     --crop 10 20 10000 20000
@@ -134,7 +134,7 @@ The `run_metadata.json` file provides complete information about each run, inclu
     "area_ratio": 0.91,
     "s_sigma": 1.6,
     "G_fit": true,
-    "skip_reduction": true,
+    "reduction": true,
     "crop": [
       3100,
       3600,
