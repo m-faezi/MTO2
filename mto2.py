@@ -26,11 +26,10 @@ def execute_run():
 
                 dark_frame.estimate_const_bg(image.smooth_image)
 
-                if run.arguments.skip_reduction:
+                if run.arguments.reduce:
 
-                    dark_frame.bg_map = np.full_like(image.image, 0, dtype=np.float32)
-
-                dark_frame.create_reduced_image(image, run.results_dir)
+                    dark_frame.create_reduced_image(image, run.results_dir)
+                    dark_frame.save_background(run.results_dir, image.header, run.arguments)
 
                 maxtree = MaxTree()
                 maxtree.construct_max_tree(image.smooth_reduced_image)
@@ -43,15 +42,11 @@ def execute_run():
                 maxtree.compute_attributes(run, image)
                 dark_frame.estimate_morph_bg(image, maxtree)
 
-                if run.arguments.skip_reduction:
-
-                    dark_frame.bg_map = np.full_like(image.image, 0, dtype=np.float32)
-
-                else:
+                if run.arguments.reduce:
 
                     dark_frame.bg_map = np.full_like(image.image, dark_frame.bg_mean, dtype=np.float32)
-
-                dark_frame.create_reduced_image(image, run.results_dir)
+                    dark_frame.create_reduced_image(image, run.results_dir)
+                    dark_frame.save_background(run.results_dir, image.header, run.arguments)
 
         else:
 
@@ -60,14 +55,12 @@ def execute_run():
             maxtree.compute_attributes(run, image)
             dark_frame.estimate_morph_bg(image, maxtree)
 
-            if run.arguments.skip_reduction:
+            if run.arguments.reduce:
 
-                dark_frame.bg_map = np.full_like(image.image, 0, dtype=np.float32)
-
-            dark_frame.create_reduced_image(image, run.results_dir)
+                dark_frame.create_reduced_image(image, run.results_dir)
+                dark_frame.save_background(run.results_dir, image.header, run.arguments)
 
         io_utils.save_run_metadata(run)
-        dark_frame.save_background(run.results_dir, image.header, run.arguments)
 
         maxtree.detect_significant_objects(dark_frame, run)
         maxtree.move_up(dark_frame, run)

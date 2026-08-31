@@ -49,9 +49,10 @@ def make_parser():
     )
 
     parser.add_argument(
-        '--skip_reduction',
+        '--reduce',
         action='store_true',
-        help='Runs without background reduction'
+        default=False,
+        help='Applies background reduction'
     )
 
     parser.add_argument(
