@@ -6,7 +6,7 @@ import os
 
 
 def get_segmentation_map(tree_structure, modified_isophote, header, run):
-
+    
     tree_of_segments, n_map_segments = hg.simplify_tree(tree_structure, np.logical_not(modified_isophote))
     colors = np.random.randint(0, 254, (tree_of_segments.num_vertices(), 3), dtype=np.uint8)
     colors[tree_of_segments.root(), :] = 0
@@ -20,9 +20,21 @@ def get_segmentation_map(tree_structure, modified_isophote, header, run):
     results_dir = os.path.join("./results", run.time_stamp)
     output_png = os.path.join(results_dir, "segmentation_map.png")
     output_fits = os.path.join(results_dir, "segmentation_map.fits")
+    output_binary_mask_png = os.path.join(results_dir, "binary_mask.png")
+    output_binary_mask_fits = os.path.join(results_dir, "binary_mask.fits")
 
     segmentation_image.save(output_png, 'PNG', quality=1080)
     io_uts.save_fits_with_header(seg_with_ids, header, output_fits)
 
+    binary_mask_data = (seg_with_ids != 0).astype(np.uint8)
+
+    binary_mask_image = Image.fromarray(binary_mask_data * 255)
+    binary_mask_image = ImageOps.flip(binary_mask_image)
+    binary_mask_image.save(output_binary_mask_png, 'PNG')
+
+    io_uts.save_fits_with_header(binary_mask_data, header, output_binary_mask_fits)
+
     return tree_of_segments, n_map_segments, unique_segment_ids, unique_segment_ids[tree_of_segments.parents()]
+
+
 
