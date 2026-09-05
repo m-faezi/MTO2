@@ -6,6 +6,7 @@ import os
 
 
 def get_segmentation_map(tree_structure, modified_isophote, header, run):
+    
     tree_of_segments, n_map_segments = hg.simplify_tree(tree_structure, np.logical_not(modified_isophote))
     colors = np.random.randint(0, 254, (tree_of_segments.num_vertices(), 3), dtype=np.uint8)
     colors[tree_of_segments.root(), :] = 0
