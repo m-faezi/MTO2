@@ -112,6 +112,7 @@ Output files (segmentation maps and catalogs) are automatically timestamped usin
 The following files are generated:
 
 - **Segmentation maps**: `segmentation_map.fits` and `segmentation_map.png`
+- **Binary masks**: `binary_mask.fits` and `binary_mask.png`
 - **Source catalogs**: `parameters.csv` (when `--par_out` is enabled)
 - **Background and reduction maps**: `background_map.fits` and `reduced.fits`
 - **Segmentation intensity calibration map**: `cali_base.fits`
