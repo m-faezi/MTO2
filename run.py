@@ -17,6 +17,9 @@ class Run:
         self.arguments = make_parser().parse_args()
         self.time_stamp = datetime.now().isoformat()
         self.results_dir = os.path.join("./results", self.time_stamp)
+        if self.arguments.out_dir is not None:
+            self.results_dir = os.path.join("./results", self.arguments.out_dir)
+
         os.makedirs(self.results_dir, exist_ok=True)
 
         return self

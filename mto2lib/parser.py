@@ -8,6 +8,12 @@ def make_parser():
     parser.add_argument('file_path', type=str, help='Path to the image file')
 
     parser.add_argument(
+        '--out_dir',
+        type=str,
+        help='Path to the output directory',
+    )
+
+    parser.add_argument(
         '--background_mode',
         type=str,
         choices=['const', 'morph'],
