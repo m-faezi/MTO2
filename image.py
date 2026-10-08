@@ -13,7 +13,7 @@ class Image:
 
     def get_image(self, run):
 
-        self.image, self.header = mto2.get_image(run.arguments, run.results_dir)
+        self.image, self.header = mto2.get_image(run)
         io_utils.save_run_metadata(run)
 
         return self

@@ -3,6 +3,7 @@ import json
 import os
 import pandas as pd
 from astropy.wcs import WCS
+from mto2lib.validators import validate_crop_coordinates
 
 
 def save_run_metadata(run):
@@ -91,9 +92,9 @@ def save_run_record(run):
         print(f"Run marked as {run.status} in: {run_csv_path}")
 
 
-def read_image_data(file_path, crop_coords=None):
+def read_image_data(run):
 
-    with fits.open(file_path) as hdu_list:
+    with fits.open(run.arguments.file_path) as hdu_list:
 
         image_hdu = next((hdu for hdu in hdu_list if hdu.data is not None), None)
 
@@ -104,9 +105,13 @@ def read_image_data(file_path, crop_coords=None):
         image = image_hdu.data
         header = image_hdu.header.copy()
 
-    if crop_coords:
+    if run.arguments.crop:
 
-        image, header = apply_crop(image, header, crop_coords)
+        run.arguments.crop = validate_crop_coordinates(run.arguments.crop, image.shape)
+
+        image, header = apply_crop(image, header, run.arguments.crop)
+
+    save_fits_with_header(image, header, os.path.join(run.results_dir, "input_data.fits"))
 
     return image, header
 
