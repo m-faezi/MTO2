@@ -20,8 +20,8 @@ class Run:
         self.results_dir = os.path.join("./results", self.time_stamp)
         if self.arguments.out_dir is not None:
             self.results_dir = os.path.join("./results", self.arguments.out_dir)
-            if os.path.exists(self.results_dir):
-                shutil.rmtree(self.results_dir)
+            # if os.path.exists(self.results_dir):
+            #     shutil.rmtree(self.results_dir)
 
         os.makedirs(self.results_dir, exist_ok=True)
 
