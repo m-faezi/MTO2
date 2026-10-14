@@ -1,7 +1,6 @@
 from datetime import datetime
 from mto2lib.parser import make_parser
 import os
-import shutil
 from pathlib import Path
 
 
@@ -28,7 +27,6 @@ class Run:
             if Path(self.results_dir).exists():
                 if not Path(self.results_dir).is_dir():
                     raise NotADirectoryError(Path(self.results_dir))
-                shutil.rmtree(Path(self.results_dir))
 
             Path(self.results_dir).mkdir(parents=True, exist_ok=True)
 
