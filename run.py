@@ -18,24 +18,24 @@ class Run:
         self.status = "Running"
         self.arguments = make_parser().parse_args()
         self.time_stamp = datetime.now().isoformat()
-        self.results_dir = os.path.join("./results", self.time_stamp)
 
-        base = Path("./results").resolve()
-        out_dir = Path(self.arguments.out_dir) if self.arguments.out_dir else None
+        if self.arguments.out_dir:
+            self.results_dir = os.path.join("./results", self.arguments.out_dir)
 
-        if out_dir is not None:
-            target = (base / out_dir).resolve()
+            if Path(self.results_dir).is_absolute():
+                raise ValueError("--out-dir is absolute")
 
-            if out_dir.is_absolute() or not target.is_relative_to(base):
-                raise ValueError("--out-dir must be inside ./results")
+            if Path(self.results_dir).exists():
+                if not Path(self.results_dir).is_dir():
+                    raise NotADirectoryError(Path(self.results_dir))
+                shutil.rmtree(Path(self.results_dir))
 
-            if target.exists():
-                if not target.is_dir():
-                    raise NotADirectoryError(target)
-                shutil.rmtree(target)
+            Path(self.results_dir).mkdir(parents=True, exist_ok=True)
 
-            target.mkdir(parents=True, exist_ok=True)
-            self.results_dir = str(target)
+        else:
+
+            self.results_dir = os.path.join("./results", self.time_stamp)
+            Path(self.results_dir).mkdir(parents=True, exist_ok=True)
 
         return self
 
