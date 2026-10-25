@@ -17,6 +17,105 @@ def extract_parameters(
         parent_segment_ids,
         run
 ):
+    print("Extracting parameters...")
+
+    n_leaves = tree_of_segments.num_leaves()
+    n_vertices = tree_of_segments.num_vertices()
+    n_segments = n_vertices - n_leaves
+
+    label_data = np.full(n_vertices, -1, dtype=np.int32)
+    label_data[n_leaves:] = np.arange(n_segments)
+    seg_array = hg.reconstruct_leaf_data(tree_of_segments, label_data)
+    del label_data
+
+    ys, xs = np.nonzero(seg_array >= 0)
+    labels = seg_array[ys, xs]
+    del seg_array
+
+    order = np.argsort(labels, kind="stable")
+    labels = labels[order]
+    ys = ys[order]
+    xs = xs[order]
+    del order
+
+    counts = np.bincount(labels, minlength=n_segments)
+    start = np.r_[0, np.cumsum(counts)[:-1]]
+    stop = start + counts
+
+    vals = image[ys, xs].astype(np.float64, copy=False)
+
+    sums = np.add.reduceat(vals, start)
+    mean_pixel = sums / counts
+    min_pixel = np.minimum.reduceat(vals, start)
+    max_pixel = np.maximum.reduceat(vals, start)
+
+    median_pixel = np.empty(n_segments, dtype=np.float64)
+
+    for i, (a, b) in enumerate(zip(start, stop)):
+        median_pixel[i] = np.median(vals[a:b])
+
+    y = np.add.reduceat(ys * vals, start) / sums
+    x = np.add.reduceat(xs * vals, start) / sums
+
+    ra, dec = uts.sky_coordinates(y, x, header)
+
+    r_eff = np.empty(n_segments, dtype=np.float64)
+    r_fwhm = np.empty(n_segments, dtype=np.float64)
+
+    for i, (a, b) in enumerate(zip(start, stop)):
+        coords = list(zip(ys[a:b].tolist(), xs[a:b].tolist()))
+        r_eff[i] = uts.half_light_radius(image, coords)
+        r_fwhm[i] = uts.compute_r_fwhm(image, coords)
+
+    a_mom, b_mom, theta = uts.second_order_moments(
+        tree_of_segments, image.shape[:2], image
+    )
+    flux = hg.accumulate_sequential(tree_of_segments, image, hg.Accumulators.sum)
+
+    leaf_idx = slice(n_leaves, None)
+    rev = slice(None, None, -1)
+
+    output_csv = os.path.join(run.results_dir, "parameters.csv")
+
+    uts.save_parameters(
+        unique_segment_ids[leaf_idx][rev],
+        x[rev],
+        y[rev],
+        ra[rev],
+        dec[rev],
+        flux[leaf_idx][rev],
+        area[n_map_segments][leaf_idx][rev],
+        convexness[n_map_segments][leaf_idx][rev],
+        a_mom[leaf_idx][rev],
+        b_mom[leaf_idx][rev],
+        theta[leaf_idx][rev],
+        r_eff[rev],
+        r_fwhm[rev],
+        mean_pixel[rev],
+        variance[n_map_segments][leaf_idx][rev],
+        median_pixel[rev],
+        min_pixel[rev],
+        max_pixel[rev],
+        parent_segment_ids[leaf_idx][rev],
+        file_name=output_csv,
+    )
+
+    return None
+
+
+def extract_parameters_old(
+        image,
+        header,
+        tree_of_segments,
+        n_map_segments,
+        altitudes,
+        area,
+        variance,
+        convexness,
+        unique_segment_ids,
+        parent_segment_ids,
+        run
+):
 
     print("Extracting parameters...")
 

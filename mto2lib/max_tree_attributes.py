@@ -3,32 +3,31 @@ import numpy as np
 import higra as hg
 
 
+def _as(a, dtype):
+    return np.asarray(a).astype(dtype, copy=False)
+
+
 def compute_attributes(tree_structure, altitudes, run, image):
 
+    parents = tree_structure.parents()
+
     x, y = uts.centroid(tree_structure, image.image.shape[:2])
-    # distances = np.sqrt((x[tree_structure.parents()] - x) ** 2 + (y[tree_structure.parents()] - y) ** 2)
-    # distance_to_root_center = np.sqrt((x[tree_structure.root()] - x) ** 2 + (y[tree_structure.root()] - y) ** 2)
+    x, y = _as(x, np.float32), _as(y, np.float32)
+
     mean, variance = hg.attribute_gaussian_region_weights_model(tree_structure, image.image)
+    mean, variance = _as(mean, np.float32), _as(variance, np.float32)
+
     area = hg.attribute_area(tree_structure)
-    convexness = hg.attribute_compactness(tree_structure, area=area, normalize=True)
-    parent_area = area[tree_structure.parents()]
-    parent_altitude = altitudes[tree_structure.parents()]
+    convexness = _as(hg.attribute_compactness(tree_structure, area=area, normalize=True), np.float32)
+    area = _as(area, np.int32)
+    parent_area = area[parents]
 
-    # if run.arguments.G_fit or run.arguments.background_mode == 'morph':
+    parent_altitude = altitudes[parents]
+    volume = _as(hg.attribute_volume(tree_structure, altitudes), np.float32)
 
-    #     gaussian_intensities = uts.compute_gaussian_profile(
-    #         variance,
-    #         distances,
-    #         altitudes/area
-    #     )
+    gamma = _as(hg.attribute_topological_height(tree_structure), np.int32)
+    parent_gamma = gamma[parents]
 
-    # else:
-
-    #    gaussian_intensities = None
-
-    volume = hg.attribute_volume(tree_structure, altitudes)
-    gamma = hg.attribute_topological_height(tree_structure)
-    parent_gamma = gamma[tree_structure.parents()]
-
-    return (x, y, mean, variance, area, parent_area, volume, parent_altitude, gamma, parent_gamma, convexness)
+    return (x, y, mean, variance, area, parent_area, volume,
+            parent_altitude, gamma, parent_gamma, convexness)
 
