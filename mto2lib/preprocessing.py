@@ -10,7 +10,11 @@ def smooth_filter(image, sigma):
 
 def get_constant_background_map(image):
 
-    return cb.estimate_background(image)
+    try:
+        return cb.estimate_background_fast(image)
+
+    except Exception as e:
+        return cb.estimate_background(image)
 
 
 def get_morphological_background_map(image, maxtree):

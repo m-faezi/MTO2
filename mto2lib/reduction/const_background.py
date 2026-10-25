@@ -23,6 +23,55 @@ def estimate_background(img, rejection_rate=0.05):
     return bg_mean, bg_var, gain, background_map
 
 
+def estimate_background_fast(img, rejection_rate=0.05, tile=64,
+                             n_target=200, batch=256, max_batches=40, seed=0):
+
+    r1 = 1 - (1 - rejection_rate) ** 0.5
+    r2 = 1 - (1 - rejection_rate) ** 0.25
+    rng = np.random.default_rng(seed)
+    H, W = img.shape
+    h = tile // 2
+    accepted = []
+
+    for _ in range(max_batches):
+        ys = rng.integers(0, H - tile, batch)
+        xs = rng.integers(0, W - tile, batch)
+        tiles = np.stack([img[y:y + tile, x:x + tile] for y, x in zip(ys, xs)])
+        flat = tiles.reshape(batch, -1)
+
+        ok = ~np.isnan(flat).any(axis=1) & ~(flat == 0).all(axis=1)
+        tiles, flat = tiles[ok], flat[ok]
+        if len(tiles) == 0:
+            continue
+
+        # same tests as before, vectorized over tiles
+        keep = stats.normaltest(flat, axis=1).pvalue >= r1
+        for a, b in (
+            (tiles[:, :h, :], tiles[:, h:, :]),
+            (tiles[:, :, :h], tiles[:, :, h:]),
+        ):
+            p = stats.ttest_ind(a.reshape(len(tiles), -1),
+                                b.reshape(len(tiles), -1), axis=1).pvalue
+            keep &= p >= r2
+
+        accepted.append(tiles[keep])
+        if sum(len(t) for t in accepted) >= n_target:
+            break
+
+    pool = np.concatenate(accepted) if accepted else None
+
+    if pool is None or len(pool) == 0:
+        raise RuntimeError("no flat tiles found; fall back to the full estimator")
+
+    soft_bias = min(np.nanmin(img), 0.0)
+    bg_mean = pool.mean()
+    bg_var = pool.var()
+    gain = (bg_mean - soft_bias) / bg_var if bg_var != 0 else 0.0
+    bg_map = np.full_like(img, bg_mean, dtype=np.float32)
+
+    return bg_mean, bg_var, gain, bg_map
+
+
 def largest_flat_tile(img, tile_size_start=6, tile_size_min=4, tile_size_max=7):
 
     current_size = 2 ** tile_size_start
