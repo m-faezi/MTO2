@@ -48,11 +48,11 @@ def make_parser():
         help='Standard deviation for smoothing Gaussian kernel'
     )
 
-    parser.add_argument(
-        '--G_fit',
-        action='store_true',
-        help='Applies morphological Gaussian filter'
-    )
+    # parser.add_argument(
+    #     '--G_fit',
+    #     action='store_true',
+    #     help='Applies morphological Gaussian filter'
+    # )
 
     parser.add_argument(
         '--reduce',

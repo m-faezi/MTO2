@@ -78,10 +78,10 @@ def estimate_structural_background(image, maxtree):
 
         tree_non_source, n_map_non_source = hg.simplify_tree(
             maxtree.tree_structure,
-            np.logical_or(
+            #np.logical_or(
                 main_branch,
-                maxtree.altitudes / maxtree.area >= maxtree.gaussian_intensities
-            )
+           #     maxtree.altitudes / maxtree.area >= maxtree.gaussian_intensities
+            #)
         )
 
         morph_background = hg.reconstruct_leaf_data(tree_non_source, maxtree.altitudes[n_map_non_source])

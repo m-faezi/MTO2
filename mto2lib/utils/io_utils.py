@@ -18,7 +18,7 @@ def save_run_metadata(run):
             "move_factor": run.arguments.move_factor,
             "area_ratio": run.arguments.area_ratio,
             "s_sigma": run.arguments.s_sigma,
-            "G_fit": run.arguments.G_fit,
+            # "G_fit": run.arguments.G_fit,
             "reduction": run.arguments.reduce,
             "crop": run.arguments.crop
         }
@@ -48,7 +48,7 @@ def save_run_record(run):
         "move_factor": run.arguments.move_factor,
         "area_ratio": run.arguments.area_ratio,
         "s_sigma": run.arguments.s_sigma,
-        "G_fit": run.arguments.G_fit,
+        # "G_fit": run.arguments.G_fit,
         "reduction": run.arguments.reduce,
         "crop": run.arguments.crop,
         "status": run.status,

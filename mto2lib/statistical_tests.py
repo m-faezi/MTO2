@@ -11,16 +11,16 @@ def attribute_statistical_significance(maxtree, dark_frame, run, alpha=1e-6):
     safe_denominator = np.where(denominator == 0, np.finfo(np.float32).eps, denominator)
     maxtree.volume /= safe_denominator
 
-    if run.arguments.G_fit:
-
-        significant_nodes = np.logical_and(
-            maxtree.volume > chi2.ppf(alpha, maxtree.area),
-            maxtree.altitudes / maxtree.area >= maxtree.gaussian_intensities
-        )
-
-    else:
-
-        significant_nodes = maxtree.volume > chi2.ppf(alpha, maxtree.area)
+    # if run.arguments.G_fit:
+#
+    #     significant_nodes = np.logical_and(
+    #         maxtree.volume > chi2.ppf(alpha, maxtree.area),
+    #         maxtree.altitudes / maxtree.area >= maxtree.gaussian_intensities
+    #     )
+#
+    # else:
+#
+    significant_nodes = maxtree.volume > chi2.ppf(alpha, maxtree.area)
 
     significant_nodes[:maxtree.tree_structure.num_leaves()] = False
 

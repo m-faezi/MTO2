@@ -46,7 +46,6 @@ Arguments are available to refine the segmentation map:
 
 - **`move_factor`**: Adjusts isophotal boundaries by shifting components relative to background noise  
 - **`area_ratio`**: Corrects deblending by evaluating area size relationships between nodes and their parents
-- **`G_fit`**: Gaussian-fit attribute filtering
 
 <p align="center">
     <img src="./assets/MTO2-flow.svg" alt="MTO2-flow" width="63.9%">
@@ -81,7 +80,6 @@ python mto2.py image.fits
     --s_sigma 1.6 
     --move_factor 0.1 
     --area_ratio 0.91  
-    --G_fit 
     --reduce 
     --par_out 
     --background_mode const
@@ -100,7 +98,6 @@ Get started with a demo in Google Colab:
 | `--move_factor`     | Adjust the spread of objects                | float     | 0.00                       | ≥ 0          |
 | `--area_ratio`      | Adjust deblending sensitivity               | float     | 0.90                       | [0.0, 1.0)   |
 | `--par_out`         | Extract and save parameters in .csv format  | flag      | -                          | -            |
-| `--G_fit`           | Apply Gaussian-fit attribute filter         | flag      | -                          | -            |
 | `--reduce`          | Runs with background reduction              | flag      | -                          | -            |
 | `--background_mode` | Select constant or morphological background | choice    | const                      | const, morph |
 | `--crop`            | Crops the image                             | int[4]    | x_min  y_min  x_max  y_max | 0 0 -1 -1    |
@@ -134,7 +131,6 @@ The `run_metadata.json` file provides complete information about each run, inclu
     "move_factor": 0.1,
     "area_ratio": 0.91,
     "s_sigma": 1.6,
-    "G_fit": true,
     "reduction": true,
     "crop": [
       3100,
