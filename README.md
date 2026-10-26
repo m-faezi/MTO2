@@ -92,16 +92,17 @@ Get started with a demo in Google Colab:
 
 ### Command line arguments
 
-| Option              | Description                                 | Type      | Default                    | Range/Values |
-|---------------------|---------------------------------------------|-----------|----------------------------|--------------|
-| `--s_sigma`         | Standard deviation for smoothing kernel     | float     | 2.00                       | ≥ 0          |
-| `--move_factor`     | Adjust the spread of objects                | float     | 0.00                       | ≥ 0          |
-| `--area_ratio`      | Adjust deblending sensitivity               | float     | 0.90                       | [0.0, 1.0)   |
-| `--par_out`         | Extract and save parameters in .csv format  | flag      | -                          | -            |
-| `--reduce`          | Runs with background reduction              | flag      | -                          | -            |
-| `--background_mode` | Select constant or morphological background | choice    | const                      | const, morph |
-| `--crop`            | Crops the image                             | int[4]    | x_min  y_min  x_max  y_max | 0 0 -1 -1    |
-| `-h`, `--help`      | Show the help message and exit              | flag      | -                          | -            |
+| Option              | Description                                 | Type      | Default                    | Range/Values                                     |
+|---------------------|---------------------------------------------|-----------|----------------------------|--------------------------------------------------|
+| `--s_sigma`         | Standard deviation for smoothing kernel     | float     | 2.00                       | ≥ 0                                              |
+| `--out_dir`         | Directory where output files are written    | `str`     | —                          | If omitted, outputs go to a timestamp location   |
+| `--move_factor`     | Adjust the spread of objects                | float     | 0.00                       | ≥ 0                                              |
+| `--area_ratio`      | Adjust deblending sensitivity               | float     | 0.90                       | [0.0, 1.0)                                       |
+| `--par_out`         | Extract and save parameters in .csv format  | flag      | -                          | -                                                |
+| `--reduce`          | Runs with background reduction              | flag      | -                          | -                                                |
+| `--background_mode` | Select constant or morphological background | choice    | const                      | const, morph                                     |
+| `--crop`            | Crops the image                             | int[4]    | x_min  y_min  x_max  y_max | 0 0 -1 -1                                        |
+| `-h`, `--help`      | Show the help message and exit              | flag      | -                          | -                                                |
 
 ### Output formatting
 
