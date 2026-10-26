@@ -77,6 +77,7 @@ python mto2.py image.fits
 ### Tuned run
 ```bash
 python mto2.py image.fits
+    --out_dir my_directory
     --s_sigma 1.6 
     --move_factor 0.1 
     --area_ratio 0.91  
