@@ -72,19 +72,16 @@ class MaxTree:
 
         target_altitudes = self.altitudes.copy()
         object_indexes, = np.nonzero(self.init_segments)
+        
         local_noise = np.sqrt(
-            np.maximum(
-                np.where(
-                    dark_frame.bg_gain != 0,
-                    dark_frame.bg_var + self.altitudes[self.tree_structure.parent(object_indexes)],
-                    0
-                ) / dark_frame.bg_gain,
-                # 0
-                1e-10
-            )
+            np.where(
+                dark_frame.bg_gain != 0,
+                dark_frame.bg_var + self.altitudes[self.tree_structure.parent(object_indexes)],
+                0
+            ) / dark_frame.bg_gain,
         )
 
-        target_altitudes[object_indexes] = self.altitudes[object_indexes] + run.arguments.move_factor * local_noise
+        target_altitudes[object_indexes] = self.altitudes[object_indexes] + abs(run.arguments.move_factor * local_noise)
 
         target_altitudes = target_altitudes[closest_object_ancestor]
 
