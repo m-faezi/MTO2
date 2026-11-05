@@ -73,7 +73,7 @@ def make_parser():
         nargs=4,
         type=int,
         metavar=('X1', 'Y1', 'X2', 'Y2'),
-        default=[0, 0, -1, -1],
+        default=None,
         help='Crop region as four integers: x1 y1 x2 y2 (e.g., --crop 100 100 500 500)'
     )
 
