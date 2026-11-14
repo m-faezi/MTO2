@@ -1,17 +1,11 @@
 //! Minimal SVG log-log scatter plot. No external crates.
-//!
-//! Writes a single SVG file. Designed for the volume-vs-area diagnostic that
-//! MTO2 uses to visually separate background nodes (near V ≈ A) from sources
-//! (above, with larger volume per pixel).
 
 use std::io::{self, Write};
 
-/// One point in the scatter.
 #[derive(Clone, Copy, Debug)]
 pub struct Point {
     pub area: f64,
     pub volume: f64,
-    /// Colour channel in [0, 1]; use for node level, depth, etc.
     pub color: f64,
 }
 
@@ -20,19 +14,17 @@ pub struct LogLogPlot<'a> {
     pub xlabel: &'a str,
     pub ylabel: &'a str,
     pub points: Vec<Point>,
-    /// Optional reference lines of slope 1, given as (label, c) meaning y = c*x.
     pub slope1_refs: Vec<(String, f64)>,
 }
 
 const W: f64 = 820.0;
 const H: f64 = 620.0;
 const PAD_L: f64 = 78.0;
-const PAD_R: f64 = 110.0; // room for colorbar
+const PAD_R: f64 = 110.0;
 const PAD_T: f64 = 56.0;
 const PAD_B: f64 = 64.0;
 
-/// Cheap perceptual ramp: dark blue → cyan → yellow.
-fn color_of(t: f64) -> (u8, u8, u8) {
+pub fn color_of(t: f64) -> (u8, u8, u8) {
     let t = t.clamp(0.0, 1.0) as f32;
     let r = (0.267 + 0.732 * smooth(t)).powf(1.0);
     let g = 0.005 + 0.995 * smooth(t.powf(1.2));
@@ -60,9 +52,7 @@ fn nice_log_ticks(lo: f64, hi: f64) -> Vec<f64> {
         let base = 10f64.powf(decade);
         for m in 1..=9 {
             let v = m as f64 * base;
-            if v >= lo && v <= hi {
-                ticks.push(v);
-            }
+            if v >= lo && v <= hi { ticks.push(v); }
         }
         decade += 1.0;
     }
@@ -70,9 +60,7 @@ fn nice_log_ticks(lo: f64, hi: f64) -> Vec<f64> {
 }
 
 fn fmt_log_tick(v: f64) -> String {
-    if v == 0.0 {
-        return "0".into();
-    }
+    if v == 0.0 { return "0".into(); }
     let e = v.abs().log10().floor() as i32;
     let m = v / 10f64.powi(e);
     if (m - m.round()).abs() < 1e-9 {
@@ -148,14 +136,11 @@ impl<'a> LogLogPlot<'a> {
             r##"<rect x="{PAD_L}" y="{PAD_T}" width="{plot_w}" height="{plot_h}" fill="none" stroke="#222" stroke-width="1"/>"##
         )?;
 
-        // Grid + ticks.
         let xticks = nice_log_ticks(10f64.powf(x0), 10f64.powf(x1));
         let yticks = nice_log_ticks(10f64.powf(y0), 10f64.powf(y1));
         for t in &xticks {
             let x = sx(t.log10());
-            if x < PAD_L - 0.5 || x > W - PAD_R + 0.5 {
-                continue;
-            }
+            if x < PAD_L - 0.5 || x > W - PAD_R + 0.5 { continue; }
             writeln!(
                 w,
                 r##"<line x1="{x:.2}" y1="{PAD_T}" x2="{x:.2}" y2="{}" stroke="#eee" stroke-width="1"/>"##,
@@ -176,9 +161,7 @@ impl<'a> LogLogPlot<'a> {
         }
         for t in &yticks {
             let y = sy(t.log10());
-            if y < PAD_T - 0.5 || y > H - PAD_B + 0.5 {
-                continue;
-            }
+            if y < PAD_T - 0.5 || y > H - PAD_B + 0.5 { continue; }
             writeln!(
                 w,
                 r##"<line x1="{PAD_L}" y1="{y:.2}" x2="{}" y2="{y:.2}" stroke="#eee" stroke-width="1"/>"##,
@@ -198,7 +181,6 @@ impl<'a> LogLogPlot<'a> {
             )?;
         }
 
-        // Slope-1 reference lines (y = c*x), clipped to the visible box.
         for (label, c) in &self.slope1_refs {
             let xa = x0.max(y0 - c.log10());
             let xb = x1.min(y1 - c.log10());
@@ -208,10 +190,7 @@ impl<'a> LogLogPlot<'a> {
                 writeln!(
                     w,
                     r##"<line x1="{:.2}" y1="{:.2}" x2="{:.2}" y2="{:.2}" stroke="#c0392b" stroke-dasharray="6 4" stroke-width="1.2" stroke-opacity="0.9"/>"##,
-                    sx(xa),
-                    sy(ya),
-                    sx(xb),
-                    sy(yb)
+                    sx(xa), sy(ya), sx(xb), sy(yb)
                 )?;
                 writeln!(
                     w,
@@ -223,7 +202,6 @@ impl<'a> LogLogPlot<'a> {
             }
         }
 
-        // Points, sorted by colour so bright ones draw on top.
         let mut idx: Vec<usize> = (0..xs.len()).collect();
         idx.sort_by(|&i, &j| {
             cs[i].partial_cmp(&cs[j]).unwrap_or(std::cmp::Ordering::Equal)
@@ -233,12 +211,10 @@ impl<'a> LogLogPlot<'a> {
             writeln!(
                 w,
                 r##"<circle cx="{:.2}" cy="{:.2}" r="1.8" fill="rgb({r},{g},{b})" fill-opacity="0.75"/>"##,
-                sx(xs[i]),
-                sy(ys[i])
+                sx(xs[i]), sy(ys[i])
             )?;
         }
 
-        // Axis labels.
         writeln!(
             w,
             r##"<text x="{:.1}" y="{}" font-size="13" text-anchor="middle">{}</text>"##,
@@ -260,7 +236,6 @@ impl<'a> LogLogPlot<'a> {
             xml_escape(self.title)
         )?;
 
-        // Colour bar.
         let cb_x = W - PAD_R + 26.0;
         let cb_w = 16.0;
         let cb_y0 = PAD_T + 10.0;
@@ -285,14 +260,12 @@ impl<'a> LogLogPlot<'a> {
         writeln!(
             w,
             r##"<text x="{:.2}" y="{:.2}" font-size="11" text-anchor="middle">max</text>"##,
-            cb_x + cb_w / 2.0,
-            cb_y0 - 6.0
+            cb_x + cb_w / 2.0, cb_y0 - 6.0
         )?;
         writeln!(
             w,
             r##"<text x="{:.2}" y="{:.2}" font-size="11" text-anchor="middle">min</text>"##,
-            cb_x + cb_w / 2.0,
-            cb_y1 + 14.0
+            cb_x + cb_w / 2.0, cb_y1 + 14.0
         )?;
         writeln!(
             w,
