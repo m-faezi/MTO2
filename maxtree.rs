@@ -1,18 +1,16 @@
-//! Max-tree construction for a 2D f32 image.
+//! Node-oriented max-tree for a 2D f32 image.
 //!
-//! Algorithm: union-find construction (Berger et al., 2007) followed by
-//! canonicalization, so every node of the tree is represented by exactly one
-//! pixel (the "canonical element" of its connected component at that level).
+//! Two-index scheme (same as Higra / MTO2):
+//!   * `node_of_pixel[p]` : node id containing pixel p
+//!   * `parent_node[n]`   : parent node id (root -> itself)
+//!   * `level[n]`         : altitude of node n
+//!   * `seed_pixel[n]`    : a representative pixel of node n
+//!   * `order[n]`         : topological order (parents before children)
 //!
-//! Conventions:
-//!   * The image is row-major, pixel index p = y * width + x.
-//!   * The root is the pixel with the lowest value (first in `order`).
-//!   * `parent[p]` is the parent pixel of p. After canonicalization,
-//!     `parent[p]` always points at a canonical element (or the root).
-//!   * A pixel p is a canonical element (i.e. a real node) iff
-//!     p is the root, or img[parent[p]] != img[p].
+//! Attribute arrays have length `num_nodes()`, not `width*height`, which is
+//! the main memory win over a pixel-oriented representation.
 
-const UNDEF: usize = usize::MAX;
+const UNDEF: u32 = u32::MAX;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Connectivity {
@@ -21,18 +19,13 @@ pub enum Connectivity {
 }
 
 impl Connectivity {
+    #[inline]
     fn offsets(self) -> &'static [(isize, isize)] {
         match self {
             Connectivity::Four => &[(-1, 0), (1, 0), (0, -1), (0, 1)],
             Connectivity::Eight => &[
-                (-1, 0),
-                (1, 0),
-                (0, -1),
-                (0, 1),
-                (-1, -1),
-                (1, -1),
-                (-1, 1),
-                (1, 1),
+                (-1, 0), (1, 0), (0, -1), (0, 1),
+                (-1, -1), (1, -1), (-1, 1), (1, 1),
             ],
         }
     }
@@ -41,12 +34,16 @@ impl Connectivity {
 pub struct MaxTree {
     pub width: usize,
     pub height: usize,
-    /// Parent pixel of every pixel (root is its own parent).
-    pub parent: Vec<usize>,
-    /// Pixels sorted by increasing value. `order[0]` is the root, and every
-    /// parent appears before its children, so iterating forward is a
-    /// top-down (root-to-leaves) traversal and in reverse is bottom-up.
-    pub order: Vec<usize>,
+    /// Length n = width*height.
+    pub node_of_pixel: Vec<u32>,
+    /// Length num_nodes. Root is its own parent.
+    pub parent_node: Vec<u32>,
+    /// Length num_nodes. Gray level of each node.
+    pub level: Vec<f32>,
+    /// Length num_nodes. Representative pixel (canonical element) of each node.
+    pub seed_pixel: Vec<u32>,
+    /// Length num_nodes. Topological order: parent precedes children.
+    pub order: Vec<u32>,
 }
 
 pub struct TreeStats {
@@ -56,114 +53,130 @@ pub struct TreeStats {
 }
 
 impl MaxTree {
-    pub fn root(&self) -> usize {
-        self.order[0]
+    #[inline]
+    pub fn num_nodes(&self) -> usize { self.parent_node.len() }
+
+    #[inline]
+    pub fn num_pixels(&self) -> usize { self.node_of_pixel.len() }
+
+    /// Root node index (always 0 by construction).
+    #[inline]
+    pub fn root(&self) -> usize { 0 }
+
+    /// Representative pixel of the root node.
+    #[inline]
+    pub fn root_pixel(&self) -> usize { self.seed_pixel[0] as usize }
+
+    /// Convert a node id to its (x, y) coordinates (from its seed pixel).
+    #[inline]
+    pub fn node_xy(&self, node: usize) -> (usize, usize) {
+        let p = self.seed_pixel[node] as usize;
+        (p % self.width, p / self.width)
     }
 
-    /// True if pixel p is the canonical element of a node.
-    pub fn is_node(&self, img: &[f32], p: usize) -> bool {
-        p == self.root() || img[self.parent[p]] != img[p]
+    /// Whether a pixel is the seed (canonical) of its node.
+    #[inline]
+    pub fn is_node_seed(&self, p: usize) -> bool {
+        self.seed_pixel[self.node_of_pixel[p] as usize] as usize == p
     }
 
-    /// Node count, leaf count and depth (root has depth 0).
-    pub fn stats(&self, img: &[f32]) -> TreeStats {
-        let n = self.parent.len();
+    pub fn stats(&self) -> TreeStats {
+        let n = self.num_nodes();
         let mut has_child = vec![false; n];
-        let mut depth = vec![0usize; n];
-        let mut nodes = 0;
-        let mut max_depth = 0;
+        let mut depth = vec![0u32; n];
+        let mut max_depth = 0usize;
 
-        // Top-down: parents are visited before children.
-        for &p in &self.order {
-            if p == self.root() {
-                nodes += 1;
-                depth[p] = 0;
-            } else if self.is_node(img, p) {
-                nodes += 1;
-                has_child[self.parent[p]] = true;
-                depth[p] = depth[self.parent[p]] + 1;
-                max_depth = max_depth.max(depth[p]);
-            } else {
-                // Non-canonical pixel: inherits depth of its node.
-                depth[p] = depth[self.parent[p]];
-            }
+        for &nd in &self.order {
+            let nd = nd as usize;
+            if nd == self.root() { continue; }
+            let par = self.parent_node[nd] as usize;
+            has_child[par] = true;
+            depth[nd] = depth[par] + 1;
+            max_depth = max_depth.max(depth[nd] as usize);
         }
 
-        let leaves = (0..n)
-            .filter(|&p| self.is_node(img, p) && !has_child[p])
-            .count();
-
-        TreeStats {
-            nodes,
-            leaves,
-            max_depth,
-        }
+        let leaves = (0..n).filter(|&k| !has_child[k]).count();
+        TreeStats { nodes: n, leaves, max_depth }
     }
 
-    /// Area attribute (Higra's `attribute_area`): the number of pixels in the
-    /// connected component represented by each node, i.e. the sum of the
-    /// areas of the leaves of its subtree (every pixel has area 1).
-    ///
-    /// The result is indexed by pixel but is only meaningful at node pixels
-    /// (`is_node`); the root's area is the total number of pixels.
+    /// Area attribute (Higra `attribute_area`): sum of subtree leaf counts.
     pub fn attribute_area(&self) -> Vec<u32> {
-        let n = self.parent.len();
-        assert!(n <= u32::MAX as usize, "image too large for u32 areas");
+        let n = self.num_nodes();
         let mut area = vec![1u32; n];
-        // Bottom-up: children come after their parent in `order`.
-        for &p in self.order.iter().rev() {
-            if p != self.root() {
-                area[self.parent[p]] += area[p];
-            }
+        for &nd in self.order.iter().rev() {
+            let nd = nd as usize;
+            if nd == self.root() { continue; }
+            let par = self.parent_node[nd] as usize;
+            area[par] += area[nd];
         }
         area
     }
 
-    /// Volume attribute (Higra's `attribute_volume`), with altitudes taken
-    /// as the pixel values:
-    ///
-    ///   V(n) = area(n) * |alt(n) - alt(parent(n))| + sum_{c in children(n)} V(c)
-    ///
-    /// The root is its own parent, so its own term is 0. Only meaningful at
-    /// node pixels, like `attribute_area`. Pixels that share a node's level
-    /// are leaves in Higra's tree and contribute 0 (same altitude as their
-    /// parent), so this matches Higra's values on the compact tree.
-    pub fn attribute_volume(&self, img: &[f32], area: &[u32]) -> Vec<f64> {
-        let n = self.parent.len();
-        let mut volume = vec![0.0f64; n];
-        for &p in self.order.iter().rev() {
-            if p == self.root() {
-                continue;
-            }
-            let q = self.parent[p];
-            if self.is_node(img, p) {
-                let height = (img[p] as f64 - img[q] as f64).abs();
-                volume[p] += area[p] as f64 * height;
-            }
-            // Non-node pixels have volume 0, so adding is harmless.
-            volume[q] += volume[p];
+    /// Volume attribute (Higra `attribute_volume`):
+    ///   V(n) = area(n) * |level(n) - level(parent(n))| + sum_{c in children} V(c)
+    pub fn attribute_volume(&self, area: &[u32]) -> Vec<f64> {
+        let n = self.num_nodes();
+        let mut vol = vec![0.0f64; n];
+        for &nd in self.order.iter().rev() {
+            let nd = nd as usize;
+            if nd == self.root() { continue; }
+            let par = self.parent_node[nd] as usize;
+            let h = (self.level[nd] as f64 - self.level[par] as f64).abs();
+            vol[nd] += area[nd] as f64 * h;
+            vol[par] += vol[nd];
         }
-        volume
+        vol
+    }
+
+    /// Topological height (Higra `attribute_topological_height`): longest
+    /// downward distance from the root, in edges.
+    pub fn attribute_gamma(&self) -> Vec<u32> {
+        let n = self.num_nodes();
+        let mut g = vec![0u32; n];
+        for &nd in &self.order {
+            let nd = nd as usize;
+            if nd == self.root() { continue; }
+            g[nd] = g[self.parent_node[nd] as usize] + 1;
+        }
+        g
+    }
+
+    /// Generic bottom-up accumulator: propagate per-node values from children
+    /// to parents. `values` must be length `num_nodes()`. Returns in-place.
+    ///
+    /// Clones each child value *before* reducing into the parent, so borrow
+    /// checker stays happy without needing `split_at_mut`.
+    pub fn accumulate<T, F>(&self, mut values: Vec<T>, mut reduce: F) -> Vec<T>
+    where
+        T: Clone,
+        F: FnMut(&mut T, &T),
+    {
+        assert_eq!(values.len(), self.num_nodes());
+        for &nd in self.order.iter().rev() {
+            let nd = nd as usize;
+            if nd == self.root() { continue; }
+            let par = self.parent_node[nd] as usize;
+            let v = values[nd].clone();
+            reduce(&mut values[par], &v);
+        }
+        values
     }
 }
 
-fn find_root(zpar: &mut [usize], mut x: usize) -> usize {
-    let mut root = x;
-    while zpar[root] != root {
-        root = zpar[root];
-    }
-    // Path compression.
-    while zpar[x] != root {
-        let next = zpar[x];
-        zpar[x] = root;
+#[inline]
+fn find_root(zpar: &mut [u32], mut x: u32) -> u32 {
+    let mut r = x;
+    while zpar[r as usize] != r { r = zpar[r as usize]; }
+    while zpar[x as usize] != r {
+        let next = zpar[x as usize];
+        zpar[x as usize] = r;
         x = next;
     }
-    root
+    r
 }
 
-/// Build the max-tree of `img` (row-major, `width * height` values).
-///
-/// NaN values must be removed beforehand (see `replace_nan`).
+/// Build the max-tree of `img` (row-major, width*height).
+/// NaNs must be replaced first (see `replace_nan`).
 pub fn build_max_tree(
     img: &[f32],
     width: usize,
@@ -171,72 +184,103 @@ pub fn build_max_tree(
     conn: Connectivity,
 ) -> MaxTree {
     let n = width * height;
-    assert_eq!(img.len(), n, "image size does not match width * height");
-    assert!(n > 0, "empty image");
+    assert_eq!(img.len(), n);
+    assert!(n > 0 && n <= u32::MAX as usize, "image dimension out of range");
 
-    // Stable sort by increasing value.
-    let mut order: Vec<usize> = (0..n).collect();
-    order.sort_by(|&a, &b| img[a].total_cmp(&img[b]));
+    // 1. Stable sort by value. order[0] is the darkest pixel.
+    let mut order: Vec<u32> = (0..n as u32).collect();
+    order.sort_by(|&a, &b| img[a as usize].total_cmp(&img[b as usize]));
 
-    let mut parent = vec![UNDEF; n];
-    let mut zpar = vec![UNDEF; n];
+    // 2. Union-find construction (Berger 2007), process brightest -> darkest.
+    let mut zpar: Vec<u32> = vec![UNDEF; n];
+    let mut parent_pix: Vec<u32> = vec![UNDEF; n];
     let offsets = conn.offsets();
+    let w = width as isize;
+    let h = height as isize;
 
-    // Process from the brightest pixel to the darkest.
-    for &p in order.iter().rev() {
-        parent[p] = p;
-        zpar[p] = p;
-        let (x, y) = ((p % width) as isize, (p / width) as isize);
+    for &pi in order.iter().rev() {
+        let p = pi as usize;
+        parent_pix[p] = p as u32;
+        zpar[p] = p as u32;
+        let x = (p % width) as isize;
+        let y = (p / width) as isize;
 
         for &(dx, dy) in offsets {
-            let (nx, ny) = (x + dx, y + dy);
-            if nx < 0 || ny < 0 || nx >= width as isize || ny >= height as isize {
-                continue;
-            }
-            let q = ny as usize * width + nx as usize;
-            if parent[q] == UNDEF {
-                continue; // neighbour not processed yet (darker)
-            }
-            let r = find_root(&mut zpar, q);
-            if r != p {
-                parent[r] = p;
-                zpar[r] = p;
+            let nx = x + dx;
+            let ny = y + dy;
+            if nx < 0 || ny < 0 || nx >= w || ny >= h { continue; }
+            let q = (ny * w + nx) as usize;
+            if parent_pix[q] == UNDEF { continue; }
+            let r = find_root(&mut zpar, q as u32);
+            if r != p as u32 {
+                parent_pix[r as usize] = p as u32;
+                zpar[r as usize] = p as u32;
             }
         }
     }
+    drop(zpar);
 
-    // Canonicalize: make every parent pointer land on a canonical element.
-    for &p in order.iter() {
-        let q = parent[p];
-        let pq = parent[q];
+    // 3. Canonicalize: parent pointer lands on a canonical element.
+    for &pi in &order {
+        let p = pi as usize;
+        let q = parent_pix[p] as usize;
+        let pq = parent_pix[q] as usize;
         if img[pq] == img[q] {
-            parent[p] = pq;
+            parent_pix[p] = pq as u32;
+        }
+    }
+
+    // 4. Assign node ids in ascending-value order.
+    //    A pixel is a node iff it is its own parent OR its parent has a
+    //    strictly different value.
+    let mut node_of_pixel: Vec<u32> = vec![UNDEF; n];
+    let mut parent_node: Vec<u32> = Vec::new();
+    let mut level: Vec<f32> = Vec::new();
+    let mut seed_pixel: Vec<u32> = Vec::new();
+    let mut node_order: Vec<u32> = Vec::new();
+
+    for &pi in &order {
+        let p = pi as usize;
+        let par = parent_pix[p] as usize;
+        let is_node = p == par || img[par] != img[p];
+        if is_node {
+            let id = parent_node.len() as u32;
+            node_of_pixel[p] = id;
+            let parent_id = if p == par { id } else { node_of_pixel[par] };
+            debug_assert!(parent_id <= id, "parent must have smaller id");
+            parent_node.push(parent_id);
+            level.push(img[p]);
+            seed_pixel.push(p as u32);
+            node_order.push(id);
+        }
+    }
+    // Fill node_of_pixel for non-seed pixels.
+    for &pi in &order {
+        let p = pi as usize;
+        if node_of_pixel[p] == UNDEF {
+            let par = parent_pix[p] as usize;
+            node_of_pixel[p] = node_of_pixel[par];
         }
     }
 
     MaxTree {
         width,
         height,
-        parent,
-        order,
+        node_of_pixel,
+        parent_node,
+        level,
+        seed_pixel,
+        order: node_order,
     }
 }
 
-/// Replace non-finite values with the minimum finite value in the image,
-/// so they end up in the background. Returns how many were replaced.
+/// Replace non-finite values with the minimum finite value.
 pub fn replace_nan(img: &mut [f32]) -> usize {
-    let min = img
-        .iter()
-        .copied()
-        .filter(|v| v.is_finite())
-        .fold(f32::INFINITY, f32::min);
+    let min = img.iter().copied().filter(|v| v.is_finite()).fold(f32::INFINITY, f32::min);
     let fill = if min.is_finite() { min } else { 0.0 };
     let mut count = 0;
     for v in img.iter_mut() {
-        if !v.is_finite() {
-            *v = fill;
-            count += 1;
-        }
+        if !v.is_finite() { *v = fill; count += 1; }
     }
     count
 }
@@ -245,21 +289,23 @@ pub fn replace_nan(img: &mut [f32]) -> usize {
 mod tests {
     use super::*;
 
-    // 3x3 image: background 1, a peak of 5 in the centre, a peak of 7 in the
-    // bottom-right corner (diagonal to the centre).
     fn sample() -> Vec<f32> {
         vec![
-            1.0, 1.0, 1.0, //
-            1.0, 5.0, 1.0, //
+            1.0, 1.0, 1.0,
+            1.0, 5.0, 1.0,
             1.0, 1.0, 7.0,
         ]
+    }
+
+    fn node_of(t: &MaxTree, pixel: usize) -> usize {
+        t.node_of_pixel[pixel] as usize
     }
 
     #[test]
     fn four_connectivity_gives_separate_peaks() {
         let img = sample();
         let t = build_max_tree(&img, 3, 3, Connectivity::Four);
-        let s = t.stats(&img);
+        let s = t.stats();
         // root(1), {5}, {7}
         assert_eq!(s.nodes, 3);
         assert_eq!(s.leaves, 2);
@@ -270,7 +316,7 @@ mod tests {
     fn eight_connectivity_nests_peaks() {
         let img = sample();
         let t = build_max_tree(&img, 3, 3, Connectivity::Eight);
-        let s = t.stats(&img);
+        let s = t.stats();
         // root(1) -> {5,7} at level 5 -> {7}
         assert_eq!(s.nodes, 3);
         assert_eq!(s.leaves, 1);
@@ -281,33 +327,35 @@ mod tests {
     fn constant_image_is_a_single_node() {
         let img = vec![3.0; 12];
         let t = build_max_tree(&img, 4, 3, Connectivity::Four);
-        let s = t.stats(&img);
+        let s = t.stats();
         assert_eq!(s.nodes, 1);
         assert_eq!(s.leaves, 1);
+        assert_eq!(t.root(), 0);
     }
 
     #[test]
-    fn parents_are_canonical_and_ordered() {
+    fn parents_are_valid_and_ordered() {
         let img = vec![
-            0.0, 2.0, 2.0, 0.0, //
-            1.0, 3.0, 2.0, 1.0, //
+            0.0, 2.0, 2.0, 0.0,
+            1.0, 3.0, 2.0, 1.0,
             0.0, 1.0, 1.0, 4.0,
         ];
         let t = build_max_tree(&img, 4, 3, Connectivity::Four);
-        let mut pos = vec![0usize; img.len()];
-        for (i, &p) in t.order.iter().enumerate() {
-            pos[p] = i;
+        let n = t.num_nodes();
+        // Parent id strictly smaller (topological order is ascending id).
+        for nd in 1..n {
+            let par = t.parent_node[nd] as usize;
+            assert!(par < nd, "node {nd}: parent {par} not < {nd}");
+            assert!(t.level[par] <= t.level[nd]);
         }
+        assert_eq!(t.parent_node[0] as usize, 0);
+        // node_of_pixel maps to valid ids and seeds are canonical.
         for p in 0..img.len() {
-            if p == t.root() {
-                assert_eq!(t.parent[p], p);
-                continue;
-            }
-            let q = t.parent[p];
-            assert!(img[q] <= img[p]);
-            assert!(pos[q] < pos[p], "parent must precede child in order");
-            // Parent must itself be a node.
-            assert!(t.is_node(&img, q));
+            let nd = node_of(t, p);
+            assert!(nd < n);
+        }
+        for nd in 0..n {
+            assert!(t.is_node_seed(t.seed_pixel[nd] as usize));
         }
     }
 
@@ -316,14 +364,14 @@ mod tests {
         let img = sample();
         let t = build_max_tree(&img, 3, 3, Connectivity::Four);
         let area = t.attribute_area();
-        let vol = t.attribute_volume(&img, &area);
-        let peak5 = 4; // centre pixel
-        let peak7 = 8; // bottom-right pixel
+        let vol = t.attribute_volume(&area);
+        let n5 = node_of(&t, 4);
+        let n7 = node_of(&t, 8);
         assert_eq!(area[t.root()], 9);
-        assert_eq!(area[peak5], 1);
-        assert_eq!(area[peak7], 1);
-        assert_eq!(vol[peak5], 4.0); // 1 * |5 - 1|
-        assert_eq!(vol[peak7], 6.0); // 1 * |7 - 1|
+        assert_eq!(area[n5], 1);
+        assert_eq!(area[n7], 1);
+        assert_eq!(vol[n5], 4.0); // 1 * |5 - 1|
+        assert_eq!(vol[n7], 6.0); // 1 * |7 - 1|
         assert_eq!(vol[t.root()], 10.0);
     }
 
@@ -332,32 +380,59 @@ mod tests {
         let img = sample();
         let t = build_max_tree(&img, 3, 3, Connectivity::Eight);
         let area = t.attribute_area();
-        let vol = t.attribute_volume(&img, &area);
-        let n5 = 4; // node at level 5 contains {5, 7}
-        let n7 = 8;
+        let vol = t.attribute_volume(&area);
+        let n5 = node_of(&t, 4);
+        let n7 = node_of(&t, 8);
         assert_eq!(area[t.root()], 9);
         assert_eq!(area[n5], 2);
         assert_eq!(area[n7], 1);
-        assert_eq!(vol[n7], 2.0); // 1 * |7 - 5|
+        assert_eq!(vol[n7], 2.0);           // 1 * |7 - 5|
         assert_eq!(vol[n5], 2.0 * 4.0 + 2.0); // 2 * |5 - 1| + V(n7)
         assert_eq!(vol[t.root()], 10.0);
     }
 
     #[test]
     fn root_volume_telescopes() {
-        // V(root) must equal sum over pixels of (value - minimum).
         let img = vec![
-            0.0, 2.0, 2.0, 0.0, //
-            1.0, 3.0, 2.0, 1.0, //
+            0.0, 2.0, 2.0, 0.0,
+            1.0, 3.0, 2.0, 1.0,
             0.0, 1.0, 1.0, 4.0,
         ];
         for conn in [Connectivity::Four, Connectivity::Eight] {
             let t = build_max_tree(&img, 4, 3, conn);
             let area = t.attribute_area();
-            let vol = t.attribute_volume(&img, &area);
+            let vol = t.attribute_volume(&area);
             assert_eq!(area[t.root()], 12);
-            let expected: f64 = img.iter().map(|&v| v as f64).sum();
+            let min = t.level[t.root()] as f64;
+            let expected: f64 = img.iter().map(|&v| v as f64 - min).sum();
             assert!((vol[t.root()] - expected).abs() < 1e-9);
+        }
+    }
+
+    #[test]
+    fn gamma_matches_depth() {
+        let img = sample();
+        let t = build_max_tree(&img, 3, 3, Connectivity::Eight);
+        let g = t.attribute_gamma();
+        assert_eq!(g[t.root()], 0);
+        assert_eq!(g[node_of(&t, 4)], 1);
+        assert_eq!(g[node_of(&t, 8)], 2);
+    }
+
+    #[test]
+    fn accumulate_sums_area() {
+        let img = sample();
+        let t = build_max_tree(&img, 3, 3, Connectivity::Four);
+        let leaves: Vec<u32> = (0..t.num_nodes())
+            .map(|nd| if t.seed_pixel[nd] as usize == t.seed_pixel[nd] as usize
+                        && !(0..t.num_nodes()).any(|m| t.parent_node[m] as usize == nd)
+                      { 1 } else { 0 })
+            .collect();
+        let acc = t.accumulate(leaves, |parent, child| *parent += *child);
+        // Accumulated leaf count equals area (each node contributes its leaf set).
+        let area = t.attribute_area();
+        for nd in 0..t.num_nodes() {
+            assert_eq!(acc[nd], area[nd]);
         }
     }
 

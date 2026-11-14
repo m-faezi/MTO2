@@ -2,6 +2,8 @@
 /target/
 **/*.rs.bk
 *.pdb
+*.svg
+*.fits
 
 # --- Cargo ---
 # Cargo.lock is usually committed for binaries/apps,
