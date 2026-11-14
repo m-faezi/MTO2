@@ -1,0 +1,42 @@
+# --- Rust build artifacts ---
+/target/
+**/*.rs.bk
+*.pdb
+
+# --- Cargo ---
+# Cargo.lock is usually committed for binaries/apps,
+# but ignored for libraries. Uncomment the next line only if this is a library crate:
+# Cargo.lock
+
+# --- IDE / editor ---
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Logs & temp ---
+*.log
+/tmp/
+
+# --- Coverage / profiling ---
+*.profraw
+*.profdata
+/coverage/
+tarpaulin-report.html
+
+# --- MSRV / rustup toolchain override (optional) ---
+# rust-toolchain
+# rust-toolchain.toml
+

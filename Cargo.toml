@@ -1,0 +1,17 @@
+[package]
+name = "maxtree"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "maxtree"
+path = "main.rs"
+
+[dependencies]
+# Needs the cfitsio C library (e.g. `apt install libcfitsio-dev`, `brew install cfitsio`).
+# Or build it bundled instead: features = ["fitsio-src"] (needs a C compiler and cmake).
+fitsio = "0.21"
+
+[profile.release]
+opt-level = 3
+lto = true
