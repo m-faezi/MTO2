@@ -8,7 +8,7 @@ use maxtree::{build_max_tree, replace_nan, Connectivity};
 use plot::{LogLogPlot, Point};
 use segment::{build_segmentation, write_segmentation_svg};
 use statistical_tests::{detect, Background};
-use std::{env, error::Error, process, time::Instant};
+use std::{collections::HashMap, env, error::Error, process, time::Instant};
 
 fn read_fits(path: &str, hdu_index: usize) -> Result<(Vec<f32>, usize, usize), Box<dyn Error>> {
     let mut file = FitsFile::open(path)?;
@@ -25,25 +25,139 @@ fn read_fits(path: &str, hdu_index: usize) -> Result<(Vec<f32>, usize, usize), B
     Ok((data, width, height))
 }
 
+/// Build a normalized 1-D Gaussian kernel. Returns `[1.0]` for sigma <= 0.
+fn gaussian_kernel(sigma: f64) -> Vec<f32> {
+    if sigma <= 0.0 {
+        return vec![1.0];
+    }
+    // scipy.ndimage.gaussian_filter: truncate=4.0, radius = int(truncate * sigma + 0.5)
+    let radius = (4.0 * sigma + 0.5) as usize;
+    let size = 2 * radius + 1;
+    let inv_2sigma2 = 1.0 / (2.0 * sigma * sigma);
+    // Accumulate in f64, normalize, then cast to f32.
+    let mut kernel64 = vec![0.0f64; size];
+    let mut sum = 0.0f64;
+    for i in 0..size {
+        let x = i as f64 - radius as f64;
+        let v = (-x * x * inv_2sigma2).exp();
+        kernel64[i] = v;
+        sum += v;
+    }
+    kernel64.iter().map(|&v| (v / sum) as f32).collect()
+}
+
+/// Mirror an index into [0, n) using scipy's 'reflect' mode: d c b a | a b c d | d c b a
+#[inline]
+fn reflect(i: isize, n: isize) -> usize {
+    let period = 2 * n;
+    let j = i.rem_euclid(period);
+    (if j >= n { period - 1 - j } else { j }) as usize
+}
+
+/// Separable Gaussian blur matching `scipy.ndimage.gaussian_filter`
+/// (mode='reflect', truncate=4.0).
+fn gaussian_blur(img: &[f32], width: usize, height: usize, sigma: f64) -> Vec<f32> {
+    if sigma <= 0.0 {
+        return img.to_vec();
+    }
+    let kernel = gaussian_kernel(sigma);
+    let radius = kernel.len() / 2;
+
+    // Horizontal pass
+    let mut tmp = vec![0.0f32; img.len()];
+    for y in 0..height {
+        for x in 0..width {
+            let mut acc = 0.0f32;
+            for (k, &w) in kernel.iter().enumerate() {
+                let sx = reflect(x as isize + k as isize - radius as isize, width as isize);
+                acc += w * img[y * width + sx];
+            }
+            tmp[y * width + x] = acc;
+        }
+    }
+
+    // Vertical pass
+    let mut out = vec![0.0f32; img.len()];
+    for y in 0..height {
+        for x in 0..width {
+            let mut acc = 0.0f32;
+            for (k, &w) in kernel.iter().enumerate() {
+                let sy = reflect(y as isize + k as isize - radius as isize, height as isize);
+                acc += w * tmp[sy * width + x];
+            }
+            out[y * width + x] = acc;
+        }
+    }
+    out
+}
+
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        eprintln!(
-            "usage: {} <image.fits> [hdu=0] [4|8] [bg_mean=0] [bg_sigma=1] [bg_gain=1] [alpha=1e-6]",
-            args[0]
-        );
+    const USAGE: &str = "usage: mto2 <image.fits> [--hdu 0] [--conn 4|8] [--bg-mean 0] \
+[--bg-sigma 1] [--bg-gain 1] [--s-sigma 2.0] [--alpha 1e-6]";
+    const KNOWN: [&str; 7] = [
+        "hdu", "conn", "bg-mean", "bg-sigma", "bg-gain", "s-sigma", "alpha",
+    ];
+
+    // Named flags: `--key value` or `--key=value`. Anything else is positional.
+    let mut positional: Vec<String> = Vec::new();
+    let mut flags: HashMap<String, String> = HashMap::new();
+    let mut it = env::args().skip(1);
+    while let Some(a) = it.next() {
+        if let Some(rest) = a.strip_prefix("--") {
+            let (key, val) = match rest.split_once('=') {
+                Some((k, v)) => (k.to_string(), v.to_string()),
+                None => match it.next() {
+                    Some(v) => (rest.to_string(), v),
+                    None => {
+                        eprintln!("missing value for --{rest}\n{USAGE}");
+                        process::exit(1);
+                    }
+                },
+            };
+            if !KNOWN.contains(&key.as_str()) {
+                eprintln!("unknown option --{key}\n{USAGE}");
+                process::exit(1);
+            }
+            flags.insert(key, val);
+        } else {
+            positional.push(a);
+        }
+    }
+    if positional.len() != 1 {
+        eprintln!("{USAGE}");
         process::exit(1);
     }
-    let path = &args[1];
-    let hdu_index: usize = args.get(2).map_or(0, |s| s.parse().expect("bad hdu"));
-    let conn = match args.get(3).map(String::as_str) {
+    let path = &positional[0];
+
+    fn flag<T: std::str::FromStr>(flags: &HashMap<String, String>, key: &str, default: T) -> T {
+        match flags.get(key) {
+            Some(s) => s.parse().unwrap_or_else(|_| {
+                eprintln!("bad value for --{key}: {s}");
+                process::exit(1)
+            }),
+            None => default,
+        }
+    }
+
+    let hdu_index: usize = flag(&flags, "hdu", 0);
+    let conn = match flags.get("conn").map(String::as_str) {
         Some("8") => Connectivity::Eight,
-        _ => Connectivity::Four,
+        Some("4") | None => Connectivity::Four,
+        Some(other) => {
+            eprintln!("bad value for --conn: {other} (expected 4 or 8)");
+            process::exit(1);
+        }
     };
-    let bg_mean: f64 = args.get(4).map_or(0.0, |s| s.parse().expect("bad bg_mean"));
-    let bg_sigma: f64 = args.get(5).map_or(1.0, |s| s.parse().expect("bad bg_sigma"));
-    let bg_gain: f64 = args.get(6).map_or(1.0, |s| s.parse().expect("bad bg_gain"));
-    let alpha: f64 = args.get(7).map_or(1e-6, |s| s.parse().expect("bad alpha"));
+    let bg_mean: f64 = flag(&flags, "bg-mean", 0.0);
+    let bg_sigma: f64 = flag(&flags, "bg-sigma", 1.0);
+    let bg_gain: f64 = flag(&flags, "bg-gain", 1.0);
+    let s_sigma: f64 = flag(&flags, "s-sigma", 2.0);
+    let alpha: f64 = flag(&flags, "alpha", 1e-6);
+    println!(
+        "params: hdu={hdu_index} conn={conn:?} bg_mean={bg_mean} bg_sigma={bg_sigma} \
+         bg_gain={bg_gain} s_sigma={s_sigma} alpha={alpha:e}"
+    );
+
     let bg = Background {
         mean: bg_mean,
         var: bg_sigma * bg_sigma,
@@ -51,7 +165,7 @@ fn main() {
         alpha,
     };
 
-    if let Err(e) = run(path, hdu_index, conn, &bg) {
+    if let Err(e) = run(path, hdu_index, conn, &bg, s_sigma) {
         eprintln!("error: {e}");
         process::exit(1);
     }
@@ -62,6 +176,7 @@ fn run(
     hdu_index: usize,
     conn: Connectivity,
     bg: &Background,
+    s_sigma: f64,
 ) -> Result<(), Box<dyn Error>> {
     let t0 = Instant::now();
     let (mut img, width, height) = read_fits(path, hdu_index)?;
@@ -72,7 +187,7 @@ fn run(
         println!("replaced {replaced} non-finite pixels with image minimum");
     }
 
-    // Print image stats so we can sanity-check the bg args.
+    // Print raw image stats so we can sanity-check the bg args.
     {
         let (mn, mx) = img
             .iter()
@@ -87,7 +202,40 @@ fn run(
             .sum::<f64>()
             / img.len() as f64;
         println!(
-            "image stats: min={mn:.3e} max={mx:.3e} mean={mean:.3e} sigma={:.3e}",
+            "raw image stats: min={mn:.3e} max={mx:.3e} mean={mean:.3e} sigma={:.3e}",
+            var.sqrt()
+        );
+    }
+
+    // MTO2 preprocessing step: Gaussian smoothing controlled by s_sigma.
+    if s_sigma > 0.0 {
+        let t_blur = Instant::now();
+        img = gaussian_blur(&img, width, height, s_sigma);
+        println!(
+            "gaussian blur (s_sigma={s_sigma:.2}) in {:.2?}",
+            t_blur.elapsed()
+        );
+    } else {
+        println!("gaussian blur skipped (s_sigma={s_sigma:.2})");
+    }
+
+    // Print smoothed image stats — these are what the significance test
+    // should be calibrated against (bg_mean/bg_sigma).
+    {
+        let (mn, mx) = img
+            .iter()
+            .copied()
+            .fold((f32::INFINITY, f32::NEG_INFINITY), |(a, b), v| {
+                (a.min(v), b.max(v))
+            });
+        let mean = img.iter().map(|&v| v as f64).sum::<f64>() / img.len() as f64;
+        let var = img
+            .iter()
+            .map(|&v| (v as f64 - mean).powi(2))
+            .sum::<f64>()
+            / img.len() as f64;
+        println!(
+            "smoothed image stats: min={mn:.3e} max={mx:.3e} mean={mean:.3e} sigma={:.3e}",
             var.sqrt()
         );
     }
@@ -186,9 +334,10 @@ fn run(
 
     let seg_svg = format!("segmentation_hdu{hdu_index}_{conn:?}.svg");
     let seg_title = format!(
-        "Segmentation ({conn:?}, hdu {hdu_index}, {} objects, alpha={:.0e})",
+        "Segmentation ({conn:?}, hdu {hdu_index}, {} objects, alpha={:.0e}, s_sigma={:.2})",
         seg.segment_seed.len(),
-        bg.alpha
+        bg.alpha,
+        s_sigma,
     );
     {
         use std::io::Write;
@@ -200,4 +349,73 @@ fn run(
     println!("wrote {seg_svg}");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kernel_sums_to_one() {
+        for sigma in [0.5, 1.0, 2.0, 3.5] {
+            let k = gaussian_kernel(sigma);
+            let s: f32 = k.iter().sum();
+            assert!((s - 1.0).abs() < 1e-5, "sigma={sigma} sum={s}");
+        }
+    }
+
+    #[test]
+    fn kernel_zero_sigma_is_identity() {
+        assert_eq!(gaussian_kernel(0.0), vec![1.0]);
+        let img = vec![1.0f32, 2.0, 3.0, 4.0];
+        assert_eq!(gaussian_blur(&img, 2, 2, 0.0), img);
+    }
+
+    #[test]
+    fn blur_preserves_constant() {
+        let img = vec![7.0f32; 25];
+        let out = gaussian_blur(&img, 5, 5, 1.5);
+        for v in out {
+            assert!((v - 7.0).abs() < 1e-4);
+        }
+    }
+
+    #[test]
+    fn reflect_matches_scipy() {
+        // n = 4: indices -3..=7 -> d c b a | a b c d | d c b a
+        let got: Vec<usize> = (-4..8).map(|i| reflect(i, 4)).collect();
+        assert_eq!(got, vec![0, 1, 2, 3, 0, 1, 2, 3, 3, 2, 1, 0]);
+    }
+
+    #[test]
+    fn kernel_radius_matches_scipy() {
+        // sigma=2 -> int(4*2+0.5)=8 -> 17 taps
+        assert_eq!(gaussian_kernel(2.0).len(), 17);
+    }
+
+    #[test]
+    fn blur_preserves_constant_at_edges() {
+        // Reflection must keep border pixels at the constant value (zero-padding would not).
+        let img = vec![7.0f32; 12 * 9];
+        let out = gaussian_blur(&img, 12, 9, 2.0);
+        assert!((out[0] - 7.0).abs() < 1e-4);
+        assert!((out[12 * 9 - 1] - 7.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn blur_smooths_impulse() {
+        // 5x5 image with a single bright pixel in the middle.
+        let mut img = vec![0.0f32; 25];
+        img[12] = 100.0;
+        let out = gaussian_blur(&img, 5, 5, 1.0);
+        // Center must drop, neighbours must rise.
+        assert!(out[12] < 100.0);
+        assert!(out[7] > 0.0);
+        assert!(out[11] > 0.0);
+        assert!(out[13] > 0.0);
+        assert!(out[17] > 0.0);
+        // Total flux must be roughly conserved.
+        let sum: f32 = out.iter().sum();
+        assert!((sum - 100.0).abs() < 1.0, "sum={sum}");
+    }
 }
