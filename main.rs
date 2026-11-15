@@ -1,9 +1,11 @@
+mod background;
 mod maxtree;
 mod plot;
 mod refined;
 mod segment;
 mod statistical_tests;
 
+use background::estimate_background;
 use fitsio::{hdu::HduInfo, FitsFile};
 use maxtree::{build_max_tree, replace_nan, Connectivity};
 use plot::{LogLogPlot, Point};
@@ -94,11 +96,11 @@ fn gaussian_blur(img: &[f32], width: usize, height: usize, sigma: f64) -> Vec<f3
 }
 
 fn main() {
-    const USAGE: &str = "usage: mto2 <image.fits> [--hdu 0] [--conn 4|8] [--bg-mean 0] \
-[--bg-sigma 1] [--bg-gain 1] [--s-sigma 2.0] [--alpha 1e-6] \
+    const USAGE: &str = "usage: mto2 <image.fits> [--hdu 0] [--conn 4|8] \
+[--s-sigma 2.0] [--alpha 1e-6] [--rejection-rate 0.05] \
 [--move-factor 0.0] [--area-ratio 0.90]";
-    const KNOWN: [&str; 9] = [
-        "hdu", "conn", "bg-mean", "bg-sigma", "bg-gain", "s-sigma", "alpha",
+    const KNOWN: [&str; 7] = [
+        "hdu", "conn", "s-sigma", "alpha", "rejection-rate",
         "move-factor", "area-ratio",
     ];
 
@@ -152,38 +154,39 @@ fn main() {
             process::exit(1);
         }
     };
-    let bg_mean: f64 = flag(&flags, "bg-mean", 0.0);
-    let bg_sigma: f64 = flag(&flags, "bg-sigma", 1.0);
-    let bg_gain: f64 = flag(&flags, "bg-gain", 1.0);
     let s_sigma: f64 = flag(&flags, "s-sigma", 2.0);
     let alpha: f64 = flag(&flags, "alpha", 1e-6);
+    let rejection_rate: f64 = flag(&flags, "rejection-rate", 0.05);
     let move_factor: f64 = flag(&flags, "move-factor", 0.0);
     let area_ratio: f64 = flag(&flags, "area-ratio", 0.90);
     println!(
-        "params: hdu={hdu_index} conn={conn:?} bg_mean={bg_mean} bg_sigma={bg_sigma} \
-         bg_gain={bg_gain} s_sigma={s_sigma} alpha={alpha:e} \
-         move_factor={move_factor} area_ratio={area_ratio}"
+        "params: hdu={hdu_index} conn={conn:?} s_sigma={s_sigma} alpha={alpha:e} \
+         rejection_rate={rejection_rate} move_factor={move_factor} area_ratio={area_ratio}"
     );
 
-    let bg = Background {
-        mean: bg_mean,
-        var: bg_sigma * bg_sigma,
-        gain: bg_gain,
+    if let Err(e) = run(
+        path,
+        hdu_index,
+        conn,
+        s_sigma,
         alpha,
-    };
-
-    if let Err(e) = run(path, hdu_index, conn, &bg, s_sigma, move_factor, area_ratio) {
+        rejection_rate,
+        move_factor,
+        area_ratio,
+    ) {
         eprintln!("error: {e}");
         process::exit(1);
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run(
     path: &str,
     hdu_index: usize,
     conn: Connectivity,
-    bg: &Background,
     s_sigma: f64,
+    alpha: f64,
+    rejection_rate: f64,
     move_factor: f64,
     area_ratio: f64,
 ) -> Result<(), Box<dyn Error>> {
@@ -196,7 +199,7 @@ fn run(
         println!("replaced {replaced} non-finite pixels with image minimum");
     }
 
-    // Print raw image stats so we can sanity-check the bg args.
+    // Print raw image stats so we can sanity-check the pipeline.
     {
         let (mn, mx) = img
             .iter()
@@ -228,8 +231,7 @@ fn run(
         println!("gaussian blur skipped (s_sigma={s_sigma:.2})");
     }
 
-    // Print smoothed image stats — these are what the significance test
-    // should be calibrated against (bg_mean/bg_sigma).
+    // Print smoothed image stats.
     {
         let (mn, mx) = img
             .iter()
@@ -246,6 +248,24 @@ fn run(
         println!(
             "smoothed image stats: min={mn:.3e} max={mx:.3e} mean={mean:.3e} sigma={:.3e}",
             var.sqrt()
+        );
+    }
+
+    // ---- background estimation from the (smoothed) image ----
+    let t_bg = Instant::now();
+    let bg = estimate_background(&img, width, height, rejection_rate, alpha);
+    println!(
+        "background estimated in {:.2?}: mean={:.3e} sigma={:.3e} gain={:.3e}",
+        t_bg.elapsed(),
+        bg.mean,
+        bg.var.sqrt(),
+        bg.gain
+    );
+    if bg.var <= 0.0 || bg.gain == 0.0 {
+        eprintln!(
+            "WARNING: degenerate background (var={:.3e}, gain={:.3e}); \
+             significance test may be meaningless",
+            bg.var, bg.gain
         );
     }
 
@@ -307,7 +327,7 @@ fn run(
 
     // -------- significance + segmentation --------
     let t3 = Instant::now();
-    let sel = detect(&tree, &area, &volume, bg);
+    let sel = detect(&tree, &area, &volume, &bg);
     let n_sig = sel.significant.iter().filter(|b| **b).count();
     let n_obj = sel.objects.iter().filter(|b| **b).count();
     println!(
@@ -330,7 +350,7 @@ fn run(
 
     // -------- isophote refinement (MTO2 move_up) --------
     let t_mv = Instant::now();
-    let corrected = move_up(&tree, &area, &sel, bg, move_factor, area_ratio);
+    let corrected = move_up(&tree, &area, &sel, &bg, move_factor, area_ratio);
     println!(
         "move_up (move_factor={move_factor}, area_ratio={area_ratio}): {} corrected segments in {:.2?}",
         corrected.iter().filter(|b| **b).count(),
