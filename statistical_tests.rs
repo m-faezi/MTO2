@@ -211,6 +211,94 @@ fn select_objects(tree: &MaxTree, area: &[u32], sig: &[bool]) -> Selection {
     }
 }
 
+/// Port of MTO2 `MaxTree.move_up` (isophote refinement).
+///
+/// Every detected object node is moved up its main branch (towards brighter
+/// levels) to the first node whose level reaches
+/// `level[obj] + |move_factor * local_noise|`, where
+/// `local_noise = sqrt((bg.var + level[parent(obj)]) / bg.gain)`.
+/// A move is only valid while the node's `area / parent_area >= area_ratio`.
+///
+/// Returns the `corrected_segments` flags (per original node id). With
+/// `move_factor = 0` the thresholds equal the object levels themselves.
+pub fn move_up(
+    tree: &MaxTree,
+    area: &[u32],
+    sel: &Selection,
+    bg: &Background,
+    move_factor: f64,
+    area_ratio: f64,
+) -> Vec<bool> {
+    let n = tree.num_nodes();
+    let root = tree.root();
+
+    // Main branch on the FULL tree: largest-area child of every node.
+    let mut largest_child: Vec<Option<usize>> = vec![None; n];
+    for nd in 0..n {
+        if nd == root {
+            continue;
+        }
+        let par = tree.parent_node[nd] as usize;
+        let replace = match largest_child[par] {
+            None => true,
+            Some(lc) => area[nd] > area[lc], // ascending nd => ties keep the lowest id
+        };
+        if replace {
+            largest_child[par] = Some(nd);
+        }
+    }
+    let is_main = |nd: usize| -> bool {
+        nd != root && largest_child[tree.parent_node[nd] as usize] == Some(nd)
+    };
+
+    // closest_object_ancestor: climb while the node is main-branch AND not an
+    // object; stop at the first object or non-main-branch node (or the root).
+    let mut cao = vec![root as u32; n];
+    for &nd in &tree.order {
+        let nd = nd as usize;
+        let par = tree.parent_node[nd] as usize;
+        cao[nd] = if nd != root && is_main(nd) && !sel.objects[nd] {
+            cao[par]
+        } else {
+            nd as u32
+        };
+    }
+
+    // Target level of an object after the move.
+    let target = |o: usize| -> f64 {
+        let par = tree.parent_node[o] as usize;
+        let noise = if bg.gain != 0.0 {
+            ((bg.var + tree.level[par] as f64) / bg.gain).max(0.0).sqrt()
+        } else {
+            0.0
+        };
+        tree.level[o] as f64 + (move_factor * noise).abs()
+    };
+
+    // valid_moves
+    let mut valid = vec![false; n];
+    for nd in 0..n {
+        let c = cao[nd] as usize;
+        if !sel.objects[c] {
+            continue;
+        }
+        let par = tree.parent_node[nd] as usize; // root: par == nd => ratio 1.0
+        let ratio = area[nd] as f64 / area[par] as f64;
+        valid[nd] = tree.level[nd] as f64 >= target(c) && ratio >= area_ratio;
+    }
+
+    // corrected_segments: first valid node along each moved branch.
+    let mut corrected = vec![false; n];
+    for nd in 0..n {
+        if !valid[nd] {
+            continue;
+        }
+        let par = tree.parent_node[nd] as usize;
+        corrected[nd] = !valid[par] || cao[par] != cao[nd];
+    }
+    corrected
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

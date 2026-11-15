@@ -1,13 +1,15 @@
 mod maxtree;
 mod plot;
+mod refined;
 mod segment;
 mod statistical_tests;
 
 use fitsio::{hdu::HduInfo, FitsFile};
 use maxtree::{build_max_tree, replace_nan, Connectivity};
 use plot::{LogLogPlot, Point};
-use segment::{build_segmentation, write_segmentation_svg};
-use statistical_tests::{detect, Background};
+use refined::build_segmentation_refined;
+use segment::write_segmentation_svg;
+use statistical_tests::{detect, move_up, Background};
 use std::{collections::HashMap, env, error::Error, process, time::Instant};
 
 fn read_fits(path: &str, hdu_index: usize) -> Result<(Vec<f32>, usize, usize), Box<dyn Error>> {
@@ -93,9 +95,11 @@ fn gaussian_blur(img: &[f32], width: usize, height: usize, sigma: f64) -> Vec<f3
 
 fn main() {
     const USAGE: &str = "usage: mto2 <image.fits> [--hdu 0] [--conn 4|8] [--bg-mean 0] \
-[--bg-sigma 1] [--bg-gain 1] [--s-sigma 2.0] [--alpha 1e-6]";
-    const KNOWN: [&str; 7] = [
+[--bg-sigma 1] [--bg-gain 1] [--s-sigma 2.0] [--alpha 1e-6] \
+[--move-factor 0.0] [--area-ratio 0.90]";
+    const KNOWN: [&str; 9] = [
         "hdu", "conn", "bg-mean", "bg-sigma", "bg-gain", "s-sigma", "alpha",
+        "move-factor", "area-ratio",
     ];
 
     // Named flags: `--key value` or `--key=value`. Anything else is positional.
@@ -153,9 +157,12 @@ fn main() {
     let bg_gain: f64 = flag(&flags, "bg-gain", 1.0);
     let s_sigma: f64 = flag(&flags, "s-sigma", 2.0);
     let alpha: f64 = flag(&flags, "alpha", 1e-6);
+    let move_factor: f64 = flag(&flags, "move-factor", 0.0);
+    let area_ratio: f64 = flag(&flags, "area-ratio", 0.90);
     println!(
         "params: hdu={hdu_index} conn={conn:?} bg_mean={bg_mean} bg_sigma={bg_sigma} \
-         bg_gain={bg_gain} s_sigma={s_sigma} alpha={alpha:e}"
+         bg_gain={bg_gain} s_sigma={s_sigma} alpha={alpha:e} \
+         move_factor={move_factor} area_ratio={area_ratio}"
     );
 
     let bg = Background {
@@ -165,7 +172,7 @@ fn main() {
         alpha,
     };
 
-    if let Err(e) = run(path, hdu_index, conn, &bg, s_sigma) {
+    if let Err(e) = run(path, hdu_index, conn, &bg, s_sigma, move_factor, area_ratio) {
         eprintln!("error: {e}");
         process::exit(1);
     }
@@ -177,6 +184,8 @@ fn run(
     conn: Connectivity,
     bg: &Background,
     s_sigma: f64,
+    move_factor: f64,
+    area_ratio: f64,
 ) -> Result<(), Box<dyn Error>> {
     let t0 = Instant::now();
     let (mut img, width, height) = read_fits(path, hdu_index)?;
@@ -319,8 +328,17 @@ fn run(
         max_area_sig, max_vol_sig, sel.significant[root], sel.objects[root]
     );
 
+    // -------- isophote refinement (MTO2 move_up) --------
+    let t_mv = Instant::now();
+    let corrected = move_up(&tree, &area, &sel, bg, move_factor, area_ratio);
+    println!(
+        "move_up (move_factor={move_factor}, area_ratio={area_ratio}): {} corrected segments in {:.2?}",
+        corrected.iter().filter(|b| **b).count(),
+        t_mv.elapsed()
+    );
+
     let t4 = Instant::now();
-    let seg = build_segmentation(&tree, &sel);
+    let seg = build_segmentation_refined(&tree, &corrected);
     println!(
         "segmentation: {} pixels covered, {} objects, largest object {} px, in {:.2?}",
         seg.segment_of_pixel
@@ -332,9 +350,11 @@ fn run(
         t4.elapsed()
     );
 
-    let seg_svg = format!("segmentation_hdu{hdu_index}_{conn:?}.svg");
+    let seg_svg = format!(
+        "segmentation_hdu{hdu_index}_{conn:?}_s{s_sigma}_mf{move_factor}_ar{area_ratio}.svg"
+    );
     let seg_title = format!(
-        "Segmentation ({conn:?}, hdu {hdu_index}, {} objects, alpha={:.0e}, s_sigma={:.2})",
+        "Segmentation ({conn:?}, hdu {hdu_index}, mf={move_factor}, ar={area_ratio}, {} objects, alpha={:.0e}, s_sigma={:.2})",
         seg.segment_seed.len(),
         bg.alpha,
         s_sigma,
