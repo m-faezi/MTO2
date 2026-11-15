@@ -92,13 +92,6 @@ fn run(
         );
     }
 
-    // ❌ OLD: quantize(&mut img);
-    // ✅ NEW: do NOT quantize. MTO2's `reduced image` is a *spatially
-    // downsampled* image, not an integer-quantized one. Rounding a
-    // small-valued (calibrated) image collapses it to ~0/1 and produces
-    // a 50-node tree.
-    // quantize(&mut img);
-
     let t1 = Instant::now();
     let tree = build_max_tree(&img, width, height, conn);
     println!("built max-tree ({conn:?}) in {:.2?}", t1.elapsed());
@@ -157,9 +150,9 @@ fn run(
 
     // -------- significance + segmentation --------
     let t3 = Instant::now();
-    let (sig, obj) = detect(&tree, &area, &volume, bg);
-    let n_sig = sig.iter().filter(|b| **b).count();
-    let n_obj = obj.iter().filter(|b| **b).count();
+    let sel = detect(&tree, &area, &volume, bg);
+    let n_sig = sel.significant.iter().filter(|b| **b).count();
+    let n_obj = sel.objects.iter().filter(|b| **b).count();
     println!(
         "detect: {} significant nodes, {} objects (alpha={:.0e}) in {:.2?}",
         n_sig,
@@ -168,19 +161,18 @@ fn run(
         t3.elapsed()
     );
 
-    // Debug: max area / volume among significant nodes.
     let (max_area_sig, max_vol_sig) = (0..tree.num_nodes())
-        .filter(|&nd| sig[nd])
+        .filter(|&nd| sel.significant[nd])
         .fold((0u32, 0.0f64), |(ma, mv), nd| {
             (ma.max(area[nd]), mv.max(volume[nd]))
         });
     println!(
         "  debug: max_sig_area={} max_sig_vol={:.3e} root_sig={} root_obj={}",
-        max_area_sig, max_vol_sig, sig[root], obj[root]
+        max_area_sig, max_vol_sig, sel.significant[root], sel.objects[root]
     );
 
     let t4 = Instant::now();
-    let seg = build_segmentation(&tree, &obj);
+    let seg = build_segmentation(&tree, &sel);
     println!(
         "segmentation: {} pixels covered, {} objects, largest object {} px, in {:.2?}",
         seg.segment_of_pixel
@@ -202,7 +194,7 @@ fn run(
         use std::io::Write;
         let f = std::fs::File::create(&seg_svg)?;
         let mut w = std::io::BufWriter::new(f);
-        write_segmentation_svg(&mut w, &seg, &seg_title)?;
+        write_segmentation_svg(&mut w, &seg, width, height, &seg_title)?;
         w.flush()?;
     }
     println!("wrote {seg_svg}");

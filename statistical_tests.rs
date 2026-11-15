@@ -10,7 +10,6 @@ pub struct Background {
 }
 
 /// Wilson–Hilferty approximation of the chi-square quantile.
-/// Accurate to ~1e-3 for df > 10, adequate here.
 fn chi2_ppf(p: f64, df: f64) -> f64 {
     if df <= 0.0 {
         return 0.0;
@@ -21,39 +20,28 @@ fn chi2_ppf(p: f64, df: f64) -> f64 {
     df * inner.powi(3)
 }
 
-/// Beasley–Springer–Moro normal quantile approximation.
+/// Acklam's normal quantile approximation.
 fn normal_quantile(p: f64) -> f64 {
     let p = p.clamp(1e-12, 1.0 - 1e-12);
 
-    // Coefficients (Acklam's approximation)
     const A: [f64; 6] = [
-        -3.969683028665376e+01,
-         2.209460984245205e+02,
-        -2.759285104469687e+02,
-         1.383577518672690e+02,
-        -3.066479806614716e+01,
-         2.506628277459239e+00,
+        -3.969683028665376e+01,  2.209460984245205e+02,
+        -2.759285104469687e+02,  1.383577518672690e+02,
+        -3.066479806614716e+01,  2.506628277459239e+00,
     ];
     const B: [f64; 5] = [
-        -5.447609879822406e+01,
-         1.615858368580409e+02,
-        -1.556989798598866e+02,
-         6.680131188771972e+01,
+        -5.447609879822406e+01,  1.615858368580409e+02,
+        -1.556989798598866e+02,  6.680131188771972e+01,
         -1.328068155288572e+01,
     ];
     const C: [f64; 6] = [
-        -7.784894002430293e-03,
-        -3.223964580411365e-01,
-        -2.400758277161838e+00,
-        -2.549732539343734e+00,
-         4.374664141464968e+00,
-         2.938163982698783e+00,
+        -7.784894002430293e-03, -3.223964580411365e-01,
+        -2.400758277161838e+00, -2.549732539343734e+00,
+         4.374664141464968e+00,  2.938163982698783e+00,
     ];
     const D: [f64; 4] = [
-         7.784695709041462e-03,
-         3.224671290700398e-01,
-         2.445134137142996e+00,
-         3.754408661907416e+00,
+         7.784695709041462e-03,  3.224671290700398e-01,
+         2.445134137142996e+00,  3.754408661907416e+00,
     ];
     const P_LOW: f64 = 0.02425;
 
@@ -73,39 +61,39 @@ fn normal_quantile(p: f64) -> f64 {
     }
 }
 
-/// Returns (significant, objects).
-///
-/// Significant-node test (ported from MTO2):
-///     V_norm = V / (var + parent_altitude / gain)
-///     significant = V_norm > chi2.ppf(alpha, area)
-///     (leaves are excluded)
-///
-/// Object selection (ported from MTO2 `select_objects`):
-///     - collapse the tree to its significant nodes
-///     - find the "main branch" in the collapsed tree (largest-area child)
-///     - objects = significant nodes that are NOT main-branch children
+/// Result of object selection: everything `build_segmentation` needs.
+pub struct Selection {
+    /// Per original node: nearest significant ancestor (inclusive).
+    pub nearest_sig_ancestor: Vec<u32>,
+    /// Per significant node: contracted parent (nearest significant ancestor of its max-tree parent).
+    /// `None` for root.
+    pub contracted_parent: Vec<Option<u32>>,
+    /// Significant-node test result.
+    pub significant: Vec<bool>,
+    /// Object flag (on the original node ids).
+    pub objects: Vec<bool>,
+    /// Main-branch flag (on the original node ids).
+    pub main_branch: Vec<bool>,
+}
+
 pub fn detect(
     tree: &MaxTree,
     area: &[u32],
     volume: &[f64],
     bg: &Background,
-) -> (Vec<bool>, Vec<bool>) {
+) -> Selection {
     let n = tree.num_nodes();
-    let root = tree.root();
     let is_leaf = tree.is_leaf();
     let eps = f64::EPSILON;
 
+    // ---- significance test (unchanged) ----
     let mut sig = vec![false; n];
     for nd in 0..n {
-        if nd == root {
-            // Test the root too (MTO2 tests it; it's usually not significant).
-        }
         if is_leaf[nd] || area[nd] <= 1 {
             continue;
         }
         let par = tree.parent_node[nd] as usize;
         let parent_level = tree.level[par] as f64;
-
         let denom = bg.var + parent_level / (bg.gain + eps);
         if denom <= 0.0 {
             continue;
@@ -115,55 +103,61 @@ pub fn detect(
         sig[nd] = v_norm > thr;
     }
 
-    // ---- select_objects ----
-    let obj = select_objects(tree, area, &sig);
-    (sig, obj)
+    // ---- object selection on the contracted tree ----
+    select_objects(tree, area, &sig)
 }
 
-/// Port of MTO2 `select_objects`, without higra.
+/// Port of MTO2 `select_objects` (with `area_ratio` deblending).
 ///
-/// Steps:
-/// 1. Keep only significant nodes; contract non-significant ones into
-///    their nearest significant ancestor (or into the root if none).
-/// 2. In the contracted tree, for every node record which child has
-///    the largest area (ties -> smallest node id, like argmax).
-/// 3. A significant node is an "object" if it is NOT a main-branch
-///    child of its contracted parent. Additionally, if the root is not
-///    significant, its contracted children are treated as non-main-branch.
-fn select_objects(tree: &MaxTree, area: &[u32], sig: &[bool]) -> Vec<bool> {
+/// 1. Contract non-significant nodes into their nearest significant ancestor.
+/// 2. Apply area-ratio deblending: if a significant child's area is
+///    >= area_ratio * parent's area, merge it into the parent branch
+///    (i.e., treat it as part of the parent, not an independent object).
+/// 3. Mark the largest-area child of each node as the "main branch".
+/// 4. Objects = significant nodes that are NOT on any main branch,
+///    after demoting root's contracted children when the root is not
+///    significant.
+fn select_objects(tree: &MaxTree, area: &[u32], sig: &[bool]) -> Selection {
     let n = tree.num_nodes();
     let root = tree.root();
+    let area_ratio = 0.90_f64; // MTO2 default
 
-    // 1. nearest significant ancestor (inclusive) for each node.
-    //    We process nodes in tree order (parents before children, since
-    //    `order` here is the BFS/DFS build order which has parents first).
-    let mut nsa = vec![root; n];
+    // 1. nearest significant ancestor (inclusive).
+    let mut nsa = vec![root as u32; n];
     for &nd in &tree.order {
         let nd = nd as usize;
         let par = tree.parent_node[nd] as usize;
-        let from_parent = if par == nd { root } else { nsa[par] };
-        nsa[nd] = if sig[nd] { nd } else { from_parent };
+        let from_parent = if par == nd { root as u32 } else { nsa[par] };
+        nsa[nd] = if sig[nd] { nd as u32 } else { from_parent };
     }
 
-    // 2. contracted parent for each significant node.
-    let mut contracted_parent: Vec<Option<usize>> = vec![None; n];
+    // 2. contracted parent + area-ratio merging.
+    let mut contracted_parent: Vec<Option<u32>> = vec![None; n];
+    let mut merged_into_parent = vec![false; n];
+
     for nd in 0..n {
         if !sig[nd] || nd == root {
             continue;
         }
         let par = tree.parent_node[nd] as usize;
-        let cp = nsa[par]; // nearest significant ancestor of the parent
-        if cp != nd {
-            contracted_parent[nd] = Some(cp);
+        let cp = nsa[par] as usize;
+        if cp == nd {
+            continue;
+        }
+        contracted_parent[nd] = Some(cp as u32);
+
+        // area_ratio deblending: large children collapse into parent.
+        if (area[nd] as f64) >= area_ratio * area[cp] as f64 {
+            merged_into_parent[nd] = true;
         }
     }
 
-    // 3. largest child of each node in the contracted tree.
-    //    For each significant node, look at its contracted children.
+    // 3. largest contracted child per node.
     let mut largest_child: Vec<Option<usize>> = vec![None; n];
     let mut largest_area: Vec<u32> = vec![0; n];
     for nd in 0..n {
         if let Some(cp) = contracted_parent[nd] {
+            let cp = cp as usize;
             let a = area[nd];
             let replace = match largest_child[cp] {
                 None => true,
@@ -176,20 +170,25 @@ fn select_objects(tree: &MaxTree, area: &[u32], sig: &[bool]) -> Vec<bool> {
         }
     }
 
-    // 4. main-branch flags in the contracted tree.
+    // 4. main-branch flags.
     let mut main_branch = vec![false; n];
     for cp in 0..n {
         if let Some(lc) = largest_child[cp] {
             main_branch[lc] = true;
         }
     }
+    // area_ratio-merges also count as main branch (absorbed into parent).
+    for nd in 0..n {
+        if merged_into_parent[nd] {
+            main_branch[nd] = true;
+        }
+    }
 
-    // 5. If the root is not significant, its contracted children are
-    //    demoted from main-branch (they become objects).
+    // 5. demote root's contracted children if root is not significant.
     if !sig[root] {
         for nd in 0..n {
             if let Some(cp) = contracted_parent[nd] {
-                if cp == root {
+                if cp as usize == root {
                     main_branch[nd] = false;
                 }
             }
@@ -197,12 +196,19 @@ fn select_objects(tree: &MaxTree, area: &[u32], sig: &[bool]) -> Vec<bool> {
     }
 
     // 6. objects = significant AND not main branch.
-    let mut obj = vec![false; n];
+    let mut objects = vec![false; n];
     for nd in 0..n {
-        obj[nd] = sig[nd] && !main_branch[nd];
+        objects[nd] = sig[nd] && !main_branch[nd];
     }
-    obj[root] = false;
-    obj
+    objects[root] = false;
+
+    Selection {
+        nearest_sig_ancestor: nsa,
+        contracted_parent,
+        significant: sig.to_vec(),
+        objects,
+        main_branch,
+    }
 }
 
 #[cfg(test)]
@@ -218,9 +224,7 @@ mod tests {
 
     #[test]
     fn chi2_sanity() {
-        // chi2.ppf(0.95, 10) ≈ 18.307
         assert!((chi2_ppf(0.95, 10.0) - 18.307).abs() < 0.5);
-        // chi2.ppf(0.5, 1) ≈ 0.455
         assert!((chi2_ppf(0.5, 1.0) - 0.455).abs() < 0.05);
     }
 }
