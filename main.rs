@@ -4,7 +4,7 @@ mod segment;
 mod statistical_tests;
 
 use fitsio::{hdu::HduInfo, FitsFile};
-use maxtree::{build_max_tree, quantize, replace_nan, Connectivity};
+use maxtree::{build_max_tree, replace_nan, Connectivity};
 use plot::{LogLogPlot, Point};
 use segment::{build_segmentation, write_segmentation_svg};
 use statistical_tests::{detect, Background};
@@ -71,7 +71,33 @@ fn run(
     if replaced > 0 {
         println!("replaced {replaced} non-finite pixels with image minimum");
     }
-    quantize(&mut img);
+
+    // Print image stats so we can sanity-check the bg args.
+    {
+        let (mn, mx) = img
+            .iter()
+            .copied()
+            .fold((f32::INFINITY, f32::NEG_INFINITY), |(a, b), v| {
+                (a.min(v), b.max(v))
+            });
+        let mean = img.iter().map(|&v| v as f64).sum::<f64>() / img.len() as f64;
+        let var = img
+            .iter()
+            .map(|&v| (v as f64 - mean).powi(2))
+            .sum::<f64>()
+            / img.len() as f64;
+        println!(
+            "image stats: min={mn:.3e} max={mx:.3e} mean={mean:.3e} sigma={:.3e}",
+            var.sqrt()
+        );
+    }
+
+    // ❌ OLD: quantize(&mut img);
+    // ✅ NEW: do NOT quantize. MTO2's `reduced image` is a *spatially
+    // downsampled* image, not an integer-quantized one. Rounding a
+    // small-valued (calibrated) image collapses it to ~0/1 and produces
+    // a 50-node tree.
+    // quantize(&mut img);
 
     let t1 = Instant::now();
     let tree = build_max_tree(&img, width, height, conn);
@@ -86,6 +112,13 @@ fn run(
         s.leaves,
         s.max_depth
     );
+    if s.nodes < 100 {
+        eprintln!(
+            "WARNING: only {} nodes — the image is nearly constant. \
+             Did you forget to skip `quantize`? Or is the image flat?",
+            s.nodes
+        );
+    }
     println!(
         "root: pixel {} (value {})",
         tree.root_pixel(),

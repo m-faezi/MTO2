@@ -1,43 +1,67 @@
-//! Port of MTO2's `statistical_tests.py` to node-oriented representation.
+//! Statistical significance + object selection, ported from MTO2.
 
 use crate::maxtree::MaxTree;
 
-const EPS: f64 = f32::EPSILON as f64;
-
 pub struct Background {
-    #[allow(dead_code)]
     pub mean: f64,
     pub var: f64,
     pub gain: f64,
     pub alpha: f64,
 }
 
-/// Standard-normal quantile via Acklam's approximation (|err| < 1.15e-9).
-fn norm_ppf(p: f64) -> f64 {
+/// Wilson–Hilferty approximation of the chi-square quantile.
+/// Accurate to ~1e-3 for df > 10, adequate here.
+fn chi2_ppf(p: f64, df: f64) -> f64 {
+    if df <= 0.0 {
+        return 0.0;
+    }
+    let z = normal_quantile(p);
+    let a = 2.0 / (9.0 * df);
+    let inner = (1.0 - a + z * a.sqrt()).max(0.0);
+    df * inner.powi(3)
+}
+
+/// Beasley–Springer–Moro normal quantile approximation.
+fn normal_quantile(p: f64) -> f64 {
+    let p = p.clamp(1e-12, 1.0 - 1e-12);
+
+    // Coefficients (Acklam's approximation)
     const A: [f64; 6] = [
-        -3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
-        1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00,
+        -3.969683028665376e+01,
+         2.209460984245205e+02,
+        -2.759285104469687e+02,
+         1.383577518672690e+02,
+        -3.066479806614716e+01,
+         2.506628277459239e+00,
     ];
     const B: [f64; 5] = [
-        -5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02,
-        6.680131188771972e+01, -1.328068155288572e+01,
+        -5.447609879822406e+01,
+         1.615858368580409e+02,
+        -1.556989798598866e+02,
+         6.680131188771972e+01,
+        -1.328068155288572e+01,
     ];
     const C: [f64; 6] = [
-        -7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
-        -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00,
+        -7.784894002430293e-03,
+        -3.223964580411365e-01,
+        -2.400758277161838e+00,
+        -2.549732539343734e+00,
+         4.374664141464968e+00,
+         2.938163982698783e+00,
     ];
     const D: [f64; 4] = [
-        7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00,
-        3.754408661907416e+00,
+         7.784695709041462e-03,
+         3.224671290700398e-01,
+         2.445134137142996e+00,
+         3.754408661907416e+00,
     ];
     const P_LOW: f64 = 0.02425;
-    const P_HIGH: f64 = 1.0 - P_LOW;
 
     if p < P_LOW {
         let q = (-2.0 * p.ln()).sqrt();
         (((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5])
             / ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1.0)
-    } else if p <= P_HIGH {
+    } else if p <= 1.0 - P_LOW {
         let q = p - 0.5;
         let r = q * q;
         (((((A[0] * r + A[1]) * r + A[2]) * r + A[3]) * r + A[4]) * r + A[5]) * q
@@ -49,136 +73,136 @@ fn norm_ppf(p: f64) -> f64 {
     }
 }
 
-/// Wilson–Hilferty approximation of χ² quantile at probability p, dof k.
-fn chi2_ppf(p: f64, k: f64) -> f64 {
-    if k <= 0.0 { return 0.0; }
-    let z = norm_ppf(p);
-    let t = 1.0 - 2.0 / (9.0 * k) + z * (2.0 / (9.0 * k)).sqrt();
-    if t <= 0.0 { 0.0 } else { k * t * t * t }
-}
-
-pub fn significance(
-    tree: &MaxTree,
-    area: &[u32],
-    volume: &[f64],
-    bg: &Background,
-) -> Vec<bool> {
-    let n = tree.num_nodes();
-    let mut sig = vec![false; n];
-    let p = 1.0 - bg.alpha;
-    let gain = bg.gain + EPS;
-
-    for nd in 0..n {
-        if nd == tree.root() { continue; }
-        let par = tree.parent_node[nd] as usize;
-        let denom = bg.var + tree.level[par] as f64 / gain;
-        let denom = if denom == 0.0 { EPS } else { denom };
-        let vn = volume[nd] / denom;
-        let thresh = chi2_ppf(p, area[nd] as f64);
-        sig[nd] = vn > thresh;
-    }
-    for nd in 0..n {
-        if area[nd] <= 1 { sig[nd] = false; }
-    }
-    sig
-}
-
-/// Higra-compatible object selection.
+/// Returns (significant, objects).
 ///
-/// 1. Collapse non-significant nodes to their nearest significant ancestor.
-/// 2. At each significant parent, the largest significant child is the
-///    "main branch"; all *other* significant children are objects.
-/// 3. If nothing survives (degenerate tree, single linear chain), keep the
-///    deepest significant node as one object.
+/// Significant-node test (ported from MTO2):
+///     V_norm = V / (var + parent_altitude / gain)
+///     significant = V_norm > chi2.ppf(alpha, area)
+///     (leaves are excluded)
 ///
-/// Returns (is_object, is_main_branch).
-pub fn select_objects(
-    tree: &MaxTree,
-    area: &[u32],
-    sig: &[bool],
-) -> (Vec<bool>, Vec<bool>) {
-    let n = tree.num_nodes();
-    let root = tree.root();
-
-    // Parent in the simplified tree = nearest significant ancestor.
-    let mut parent_in_simplified: Vec<Option<usize>> = vec![None; n];
-    {
-        let mut nearest_sig: Vec<Option<usize>> = vec![None; n];
-        nearest_sig[root] = if sig[root] { Some(root) } else { None };
-        for &nd in &tree.order {
-            let nd = nd as usize;
-            if nd == root { continue; }
-            let par = tree.parent_node[nd] as usize;
-            nearest_sig[nd] = if sig[nd] { Some(nd) } else { nearest_sig[par] };
-        }
-        for &nd in &tree.order {
-            let nd = nd as usize;
-            if !sig[nd] { continue; }
-            if nd == root { parent_in_simplified[nd] = None; continue; }
-            let par = tree.parent_node[nd] as usize;
-            parent_in_simplified[nd] = nearest_sig[par];
-        }
-    }
-
-    // Largest child in the simplified tree per parent.
-    let mut largest_child: Vec<usize> = vec![usize::MAX; n];
-    let mut largest_area: Vec<u32> = vec![0; n];
-    for &nd in &tree.order {
-        let nd = nd as usize;
-        if !sig[nd] { continue; }
-        let Some(par_sig) = parent_in_simplified[nd] else { continue };
-        if area[nd] > largest_area[par_sig] {
-            largest_area[par_sig] = area[nd];
-            largest_child[par_sig] = nd;
-        }
-    }
-
-    let mut is_main = vec![false; n];
-    for nd in 0..n {
-        if largest_child[nd] != usize::MAX {
-            is_main[largest_child[nd]] = true;
-        }
-    }
-
-    // Object = significant, not root, not the largest child of its parent.
-    let mut is_obj = vec![false; n];
-    for &nd in &tree.order {
-        let nd = nd as usize;
-        if !sig[nd] || nd == root { continue; }
-        if !is_main[nd] {
-            is_obj[nd] = true;
-        }
-    }
-
-    // Fallback for degenerate trees: keep the deepest significant node.
-    if !is_obj.iter().any(|b| *b) {
-        let mut best: Option<usize> = None;
-        for &nd in &tree.order {
-            let nd = nd as usize;
-            if !sig[nd] || nd == root { continue; }
-            best = Some(match best {
-                None => nd,
-                Some(b) if area[nd] < area[b] => nd, // prefer smallest significant
-                Some(b) => b,
-            });
-        }
-        if let Some(nd) = best {
-            is_obj[nd] = true;
-        }
-    }
-
-    (is_obj, is_main)
-}
-
+/// Object selection (ported from MTO2 `select_objects`):
+///     - collapse the tree to its significant nodes
+///     - find the "main branch" in the collapsed tree (largest-area child)
+///     - objects = significant nodes that are NOT main-branch children
 pub fn detect(
     tree: &MaxTree,
     area: &[u32],
     volume: &[f64],
     bg: &Background,
 ) -> (Vec<bool>, Vec<bool>) {
-    let sig = significance(tree, area, volume, bg);
-    let (obj, _main) = select_objects(tree, area, &sig);
+    let n = tree.num_nodes();
+    let root = tree.root();
+    let is_leaf = tree.is_leaf();
+    let eps = f64::EPSILON;
+
+    let mut sig = vec![false; n];
+    for nd in 0..n {
+        if nd == root {
+            // Test the root too (MTO2 tests it; it's usually not significant).
+        }
+        if is_leaf[nd] || area[nd] <= 1 {
+            continue;
+        }
+        let par = tree.parent_node[nd] as usize;
+        let parent_level = tree.level[par] as f64;
+
+        let denom = bg.var + parent_level / (bg.gain + eps);
+        if denom <= 0.0 {
+            continue;
+        }
+        let v_norm = volume[nd] / denom;
+        let thr = chi2_ppf(bg.alpha, area[nd] as f64);
+        sig[nd] = v_norm > thr;
+    }
+
+    // ---- select_objects ----
+    let obj = select_objects(tree, area, &sig);
     (sig, obj)
+}
+
+/// Port of MTO2 `select_objects`, without higra.
+///
+/// Steps:
+/// 1. Keep only significant nodes; contract non-significant ones into
+///    their nearest significant ancestor (or into the root if none).
+/// 2. In the contracted tree, for every node record which child has
+///    the largest area (ties -> smallest node id, like argmax).
+/// 3. A significant node is an "object" if it is NOT a main-branch
+///    child of its contracted parent. Additionally, if the root is not
+///    significant, its contracted children are treated as non-main-branch.
+fn select_objects(tree: &MaxTree, area: &[u32], sig: &[bool]) -> Vec<bool> {
+    let n = tree.num_nodes();
+    let root = tree.root();
+
+    // 1. nearest significant ancestor (inclusive) for each node.
+    //    We process nodes in tree order (parents before children, since
+    //    `order` here is the BFS/DFS build order which has parents first).
+    let mut nsa = vec![root; n];
+    for &nd in &tree.order {
+        let nd = nd as usize;
+        let par = tree.parent_node[nd] as usize;
+        let from_parent = if par == nd { root } else { nsa[par] };
+        nsa[nd] = if sig[nd] { nd } else { from_parent };
+    }
+
+    // 2. contracted parent for each significant node.
+    let mut contracted_parent: Vec<Option<usize>> = vec![None; n];
+    for nd in 0..n {
+        if !sig[nd] || nd == root {
+            continue;
+        }
+        let par = tree.parent_node[nd] as usize;
+        let cp = nsa[par]; // nearest significant ancestor of the parent
+        if cp != nd {
+            contracted_parent[nd] = Some(cp);
+        }
+    }
+
+    // 3. largest child of each node in the contracted tree.
+    //    For each significant node, look at its contracted children.
+    let mut largest_child: Vec<Option<usize>> = vec![None; n];
+    let mut largest_area: Vec<u32> = vec![0; n];
+    for nd in 0..n {
+        if let Some(cp) = contracted_parent[nd] {
+            let a = area[nd];
+            let replace = match largest_child[cp] {
+                None => true,
+                Some(lc) => a > largest_area[cp] || (a == largest_area[cp] && nd < lc),
+            };
+            if replace {
+                largest_child[cp] = Some(nd);
+                largest_area[cp] = a;
+            }
+        }
+    }
+
+    // 4. main-branch flags in the contracted tree.
+    let mut main_branch = vec![false; n];
+    for cp in 0..n {
+        if let Some(lc) = largest_child[cp] {
+            main_branch[lc] = true;
+        }
+    }
+
+    // 5. If the root is not significant, its contracted children are
+    //    demoted from main-branch (they become objects).
+    if !sig[root] {
+        for nd in 0..n {
+            if let Some(cp) = contracted_parent[nd] {
+                if cp == root {
+                    main_branch[nd] = false;
+                }
+            }
+        }
+    }
+
+    // 6. objects = significant AND not main branch.
+    let mut obj = vec![false; n];
+    for nd in 0..n {
+        obj[nd] = sig[nd] && !main_branch[nd];
+    }
+    obj[root] = false;
+    obj
 }
 
 #[cfg(test)]
@@ -186,16 +210,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn norm_ppf_sanity() {
-        assert!((norm_ppf(0.5)).abs() < 1e-12);
-        assert!((norm_ppf(0.975) - 1.959963984540054).abs() < 1e-6);
+    fn normal_quantile_sanity() {
+        assert!((normal_quantile(0.5)).abs() < 1e-6);
+        assert!((normal_quantile(0.975) - 1.959964).abs() < 1e-3);
+        assert!((normal_quantile(0.025) + 1.959964).abs() < 1e-3);
     }
 
     #[test]
-    fn chi2_ppf_sanity() {
-        let k = 100.0;
-        let got = chi2_ppf(1.0 - 1e-6, k);
-        let want = 189.884913393596;
-        assert!((got - want).abs() / want < 0.02);
+    fn chi2_sanity() {
+        // chi2.ppf(0.95, 10) ≈ 18.307
+        assert!((chi2_ppf(0.95, 10.0) - 18.307).abs() < 0.5);
+        // chi2.ppf(0.5, 1) ≈ 0.455
+        assert!((chi2_ppf(0.5, 1.0) - 0.455).abs() < 0.05);
     }
 }

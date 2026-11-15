@@ -74,6 +74,18 @@ impl MaxTree {
         TreeStats { nodes: n, leaves, max_depth }
     }
 
+    /// Returns true for nodes that have no children (i.e., leaves).
+    pub fn is_leaf(&self) -> Vec<bool> {
+        let n = self.num_nodes();
+        let mut has_child = vec![false; n];
+        for &nd in &self.order {
+            let nd = nd as usize;
+            if nd == self.root() { continue; }
+            has_child[self.parent_node[nd] as usize] = true;
+        }
+        (0..n).map(|k| !has_child[k]).collect()
+    }
+
     pub fn attribute_area(&self) -> Vec<u32> {
         let n = self.num_nodes();
         let mut area = vec![1u32; n];
@@ -213,10 +225,13 @@ pub fn replace_nan(img: &mut [f32]) -> usize {
 
 /// Round pixel values to integer ADU levels.
 ///
-/// Without this, continuous-valued images produce a max-tree where every
-/// pixel is its own node (area = 1), which makes significance and selection
-/// degenerate: there are no "regions" of area ≥ 2. MTO2 quantizes the
-/// same way before tree construction.
+/// WARNING: only use this if your image is already integer-quantized ADU.
+/// For continuous-valued (calibrated) images this collapses the tree to a
+/// handful of nodes and destroys the statistical test. MTO2 does *not*
+/// quantize reduced/calibrated images — it only works on the spatially
+/// reduced image (different concept). We keep the function but no longer
+/// call it from `main`.
+#[allow(dead_code)]
 pub fn quantize(img: &mut [f32]) {
     for v in img.iter_mut() {
         *v = v.round();
@@ -280,12 +295,5 @@ mod tests {
         let mut img = vec![f32::NAN, 2.0, 1.0, f32::INFINITY];
         assert_eq!(replace_nan(&mut img), 2);
         assert_eq!(img, vec![1.0, 2.0, 1.0, 1.0]);
-    }
-
-    #[test]
-    fn quantize_rounds() {
-        let mut img = vec![0.4, 0.6, -0.4, -0.6, 2.5, 3.5];
-        quantize(&mut img);
-        assert_eq!(img, vec![0.0, 1.0, -0.0, -1.0, 3.0, 4.0]);
     }
 }
