@@ -93,10 +93,10 @@ fn gaussian_blur(img: &[f32], width: usize, height: usize, sigma: f64) -> Vec<f3
 fn main() {
     const USAGE: &str = "usage: mto2 <image.fits> [--hdu 0] [--conn 4|8] \
 [--s-sigma 2.0] [--alpha 1e-6] [--rejection-rate 0.05] \
-[--move-factor 0.0] [--area-ratio 0.90]";
-    const KNOWN: [&str; 7] = [
+[--move-factor 0.0] [--area-ratio 0.90] [--out-dir DIR]";
+    const KNOWN: [&str; 8] = [
         "hdu", "conn", "s-sigma", "alpha", "rejection-rate",
-        "move-factor", "area-ratio",
+        "move-factor", "area-ratio", "out-dir",
     ];
 
     let mut positional: Vec<String> = Vec::new();
@@ -153,9 +153,12 @@ fn main() {
     let rejection_rate: f64 = flag(&flags, "rejection-rate", 0.05);
     let move_factor: f64 = flag(&flags, "move-factor", 0.0);
     let area_ratio: f64 = flag(&flags, "area-ratio", 0.90);
+    let out_dir: Option<String> = flags.get("out-dir").cloned();
     println!(
         "params: hdu={hdu_index} conn={conn:?} s_sigma={s_sigma} alpha={alpha:e} \
-         rejection_rate={rejection_rate} move_factor={move_factor} area_ratio={area_ratio}"
+         rejection_rate={rejection_rate} move_factor={move_factor} area_ratio={area_ratio} \
+         out_dir={}",
+        out_dir.as_deref().unwrap_or("<timestamp>")
     );
 
     if let Err(e) = run(
@@ -167,6 +170,7 @@ fn main() {
         rejection_rate,
         move_factor,
         area_ratio,
+        out_dir.as_deref(),
     ) {
         eprintln!("error: {e}");
         process::exit(1);
@@ -183,10 +187,35 @@ fn run(
     rejection_rate: f64,
     move_factor: f64,
     area_ratio: f64,
+    out_dir: Option<&str>,
 ) -> Result<(), Box<dyn Error>> {
     let t0 = Instant::now();
     let (mut img, width, height) = read_fits(path, hdu_index)?;
     println!("read {width} x {height} image in {:.2?}", t0.elapsed());
+
+    // ---- output directory: results/<out-dir or timestamp>/ ----
+    let results_root = std::path::Path::new("results");
+    std::fs::create_dir_all(results_root)?;
+    let out_base = match out_dir {
+        Some(d) => {
+            let p = results_root.join(d);
+            std::fs::create_dir_all(&p)?;
+            p
+        }
+        None => {
+            let secs = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            let p = results_root.join(format!("run_{secs}"));
+            std::fs::create_dir_all(&p)?;
+            p
+        }
+    };
+    println!("output directory: {}", out_base.display());
+    let out = |name: String| -> String {
+        out_base.join(name).to_string_lossy().into_owned()
+    };
 
     let replaced = replace_nan(&mut img);
     if replaced > 0 {
@@ -319,7 +348,7 @@ fn run(
             color: (tree.level[nd] - level_root) as f64,
         })
         .collect();
-    let svg_path = format!("volume_vs_area_hdu{hdu_index}_{conn:?}.svg");
+    let svg_path = out(format!("volume_vs_area_hdu{hdu_index}_{conn:?}.svg"));
     let title = format!(
         "Volume vs Area ({conn:?}, hdu {hdu_index}, {} non-root nodes)",
         points.len()
@@ -379,9 +408,9 @@ fn run(
         t4.elapsed()
     );
 
-    let seg_svg = format!(
+    let seg_svg = out(format!(
         "segmentation_hdu{hdu_index}_{conn:?}_s{s_sigma}_mf{move_factor}_ar{area_ratio}.svg"
-    );
+    ));
     let seg_title = format!(
         "Segmentation ({conn:?}, hdu {hdu_index}, mf={move_factor}, ar={area_ratio}, {} objects, alpha={:.0e}, s_sigma={:.2})",
         seg.segment_seed.len(),
@@ -397,16 +426,19 @@ fn run(
     }
     println!("wrote {seg_svg}");
 
-    output::write_segmentation_fits(path, hdu_index, &seg, width, height, "segmentation_map.fits")?;
-    println!("wrote segmentation_map.fits");
+    let seg_fits = out("segmentation_map.fits".into());
+    output::write_segmentation_fits(path, hdu_index, &seg, width, height, &seg_fits)?;
+    println!("wrote {seg_fits}");
+
+    let csv_path = out("parameters.csv".into());
     output::write_parameters_csv(
         &tree,
         area,
         &seg,
         raw.as_deref().unwrap_or(&img),
-        "parameters.csv",
+        &csv_path,
     )?;
-    println!("wrote parameters.csv ({} segments)", seg.segment_seed.len());
+    println!("wrote {csv_path} ({} segments)", seg.segment_seed.len());
 
     Ok(())
 }
