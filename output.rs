@@ -4,12 +4,19 @@
 //!   (same layout / header as the input image, like the Python `segmentation_map.fits`).
 //!   Ids follow `tree.order` (a parent always has a smaller id than its children),
 //!   as in the Python version where id = (n_vertices - 1 - vertex index).
-//! * `parameters.csv`: `ID,Area,Flux`, one row per segment.
-//!     Area = max-tree node area of the segment (pixels, includes nested segments),
-//!            as `area[n_map_segments]` in the Python version.
-//!     Flux = sum of the UNSMOOTHED image over the same pixels
-//!            (`hg.accumulate_sequential(tree_of_segments, image, sum)` in Python).
-//!   Both are O(pixels + nodes); no per-segment pixel lists are built.
+//! * `parameters.csv`: `ID,Area,Flux,R_eff,Min,Max,X,Y,RA,Dec`, one row per segment.
+//!     Area   = max-tree node area of the segment (pixels, includes nested segments),
+//!              as `area[n_map_segments]` in the Python version.
+//!     Flux   = sum of the UNSMOOTHED image over the same pixels
+//!              (`hg.accumulate_sequential(tree_of_segments, image, sum)` in Python).
+//!     R_eff  = sqrt( (Σx² + Σy²)/A - (cx² + cy²) ) over the segment's pixels,
+//!              with (cx, cy) = (Σx/A, Σy/A) the pixel centroid.
+//!     Min/Max = min/max of the UNSMOOTHED image over the segment's pixels.
+//!     X, Y   = the node centroid already computed by `compute_attributes`
+//!              (`tree.cx[node]`, `tree.cy[node]`). No extra work.
+//!     RA,Dec = world coordinates of (X, Y) from the FITS WCS header.
+//!              NaN when the required WCS keywords are absent.
+//!   Everything is O(pixels + nodes + header); no per-segment pixel lists.
 
 use crate::maxtree::MaxTree;
 use crate::segment::Segmentation;
@@ -20,38 +27,189 @@ const BLOCK: usize = 2880;
 const CARD: usize = 80;
 
 // ---------------------------------------------------------------------------
+// Minimal linear WCS (TAN-like), read from FITS header cards.
+// ---------------------------------------------------------------------------
+
+/// Linear WCS: pixel (1-based) → intermediate world (deg) → sky (deg).
+/// Supports CD_i_j and (CDELT + PC) forms; assumes TAN (or any projection where
+/// the linear part dominates near the reference point) — good enough for source
+/// catalogues. Returns `None` if any required keyword is missing.
+struct Wcs {
+    crpix1: f64,
+    crpix2: f64,
+    crval1: f64, // deg
+    crval2: f64, // deg
+    cd11: f64,
+    cd12: f64,
+    cd21: f64,
+    cd22: f64,
+}
+
+impl Wcs {
+    fn from_cards(cards: &[[u8; CARD]]) -> Option<Self> {
+        let f = |key: &str| -> Option<f64> {
+            cards
+                .iter()
+                .find(|c| c[..8].starts_with(format!("{key:<8}").as_bytes()))
+                .and_then(|c| std::str::from_utf8(&c[10..]).ok())
+                .and_then(|s| s.split('/').next()?.trim().parse::<f64>().ok())
+        };
+        let crpix1 = f("CRPIX1")?;
+        let crpix2 = f("CRPIX2")?;
+        let crval1 = f("CRVAL1")?;
+        let crval2 = f("CRVAL2")?;
+        // CD matrix preferred; fall back to CDELT + PC.
+        let cd11;
+        let cd12;
+        let cd21;
+        let cd22;
+        if let (Some(a), Some(b), Some(c), Some(d)) =
+            (f("CD1_1"), f("CD1_2"), f("CD2_1"), f("CD2_2"))
+        {
+            cd11 = a; cd12 = b; cd21 = c; cd22 = d;
+        } else {
+            let cdelt1 = f("CDELT1")?;
+            let cdelt2 = f("CDELT2")?;
+            let pc11 = f("PC1_1").unwrap_or(1.0);
+            let pc12 = f("PC1_2").unwrap_or(0.0);
+            let pc21 = f("PC2_1").unwrap_or(0.0);
+            let pc22 = f("PC2_2").unwrap_or(1.0);
+            cd11 = cdelt1 * pc11; cd12 = cdelt1 * pc12;
+            cd21 = cdelt2 * pc21; cd22 = cdelt2 * pc22;
+        }
+        Some(Wcs {
+            crpix1, crpix2, crval1, crval2,
+            cd11, cd12, cd21, cd22,
+        })
+    }
+
+    /// (x, y) are 0-based pixel coordinates; FITS is 1-based.
+    /// Returns (ra_deg, dec_deg). For small offsets near the reference point
+    /// the linear intermediate-world coords ARE the tangent-plane coords;
+    /// we do the standard TAN inverse so the result is exact for TAN.
+    #[inline]
+    fn sky(&self, x: f64, y: f64) -> (f64, f64) {
+        let dx = x + 1.0 - self.crpix1;
+        let dy = y + 1.0 - self.crpix2;
+        let xi = self.cd11 * dx + self.cd12 * dy; // deg
+        let eta = self.cd21 * dx + self.cd22 * dy; // deg
+        let xi = xi.to_radians();
+        let eta = eta.to_radians();
+        let ra0 = self.crval1.to_radians();
+        let dec0 = self.crval2.to_radians();
+        let (sin_d0, cos_d0) = dec0.sin_cos();
+        let denom = cos_d0 - eta * sin_d0;
+        let ra = ra0 + xi.atan2(denom);
+        let dec = (sin_d0 + eta * cos_d0).atan2((xi * xi + denom * denom).sqrt());
+        (ra.to_degrees().rem_euclid(360.0), dec.to_degrees())
+    }
+}
+
+// ---------------------------------------------------------------------------
 // parameters.csv
 // ---------------------------------------------------------------------------
 
-/// Write `ID,Area,Flux`. `raw` is the image BEFORE smoothing.
+/// Write `ID,Area,Flux,R_eff,Min,Max,X,Y,RA,Dec`.
+/// `raw` is the image BEFORE smoothing.
+/// `in_path`/`hdu_index` are used only to read the WCS keywords once.
 pub fn write_parameters_csv(
     tree: &MaxTree,
     area: &[u32],
     seg: &Segmentation,
     raw: &[f32],
+    in_path: &str,
+    hdu_index: usize,
     path: &str,
 ) -> io::Result<()> {
     let root = tree.root();
+    let n_nodes = tree.num_nodes();
+    let w = tree.width;
 
-    // Flux of every max-tree node = sum of raw pixels in its whole subtree.
-    let mut flux = vec![0.0f64; tree.num_nodes()];
+    // WCS: read header once. None → RA/Dec = NaN.
+    let wcs = read_header_cards(in_path, hdu_index)
+        .ok()
+        .and_then(|cards| Wcs::from_cards(&cards));
+
+    // ---- one bottom-up pass accumulating everything we need per node ----
+    let mut flux = vec![0.0f64; n_nodes];
+    let mut sx = vec![0.0f64; n_nodes];
+    let mut sy = vec![0.0f64; n_nodes];
+    let mut sxx = vec![0.0f64; n_nodes];
+    let mut syy = vec![0.0f64; n_nodes];
+    let mut mn = vec![f64::INFINITY; n_nodes];
+    let mut mx = vec![f64::NEG_INFINITY; n_nodes];
+
     for (p, &nd) in tree.node_of_pixel.iter().enumerate() {
-        flux[nd as usize] += raw[p] as f64;
+        let nd = nd as usize;
+        let v = raw[p] as f64;
+        let x = (p % w) as f64;
+        let y = (p / w) as f64;
+        flux[nd] += v;
+        sx[nd] += x;
+        sy[nd] += y;
+        sxx[nd] += x * x;
+        syy[nd] += y * y;
+        if v < mn[nd] { mn[nd] = v; }
+        if v > mx[nd] { mx[nd] = v; }
     }
+
     for &nd in tree.order.iter().rev() {
         let nd = nd as usize;
-        if nd != root {
-            flux[tree.parent_node[nd] as usize] += flux[nd];
+        if nd == root {
+            continue;
         }
+        let par = tree.parent_node[nd] as usize;
+        flux[par] += flux[nd];
+        sx[par] += sx[nd];
+        sy[par] += sy[nd];
+        sxx[par] += sxx[nd];
+        syy[par] += syy[nd];
+        if mn[nd] < mn[par] { mn[par] = mn[nd]; }
+        if mx[nd] > mx[par] { mx[par] = mx[nd]; }
     }
 
-    let mut w = BufWriter::new(File::create(path)?);
-    writeln!(w, "ID,Area,Flux")?;
+    // ---- write rows ----
+    let mut wtr = BufWriter::new(File::create(path)?);
+    writeln!(wtr, "ID,Area,Flux,R_eff,Min,Max,X,Y,RA,Dec")?;
     for (i, &nd) in seg.segment_seed.iter().enumerate() {
         let nd = nd as usize;
-        writeln!(w, "{},{},{}", i + 1, area[nd], flux[nd])?;
+        let a = area[nd].max(1) as f64;
+        let cx = sx[nd] / a;
+        let cy = sy[nd] / a;
+        let r2 = (sxx[nd] + syy[nd]) / a - (cx * cx + cy * cy);
+        let r_eff = r2.max(0.0).sqrt();
+        let seg_min = if mn[nd].is_finite() { mn[nd] } else { 0.0 };
+        let seg_max = if mx[nd].is_finite() { mx[nd] } else { 0.0 };
+
+        // X, Y: reuse the centroid already computed in `compute_attributes`.
+        let x = tree.cx[nd] as f64;
+        let y = tree.cy[nd] as f64;
+
+        // RA, Dec: WCS transform of the same (x, y), or NaN when unavailable.
+        let (ra, dec) = match &wcs {
+            Some(w) => {
+                let (r, d) = w.sky(x, y);
+                (r, d)
+            }
+            None => (f64::NAN, f64::NAN),
+        };
+
+        writeln!(
+            wtr,
+            "{},{},{},{:.6},{:.6e},{:.6e},{:.6},{:.6},{:.8},{:.8}",
+            i + 1,
+            area[nd],
+            flux[nd],
+            r_eff,
+            seg_min,
+            seg_max,
+            x,
+            y,
+            ra,
+            dec
+        )?;
     }
-    w.flush()
+    wtr.flush()
 }
 
 // ---------------------------------------------------------------------------
@@ -158,9 +316,10 @@ mod tests {
     use crate::maxtree::{build_max_tree, Connectivity};
     use crate::refined::build_segmentation_refined;
 
-    /// Brute-force check of ID / Area / Flux against flood fill of {pixel >= level}.
+    /// Brute-force check of ID / Area / Flux / R_eff / Min / Max / X / Y
+    /// against a flood fill of {pixel >= level}.
     #[test]
-    fn area_and_flux_match_flood_fill() {
+    fn all_columns_match_flood_fill() {
         let (w, h) = (23usize, 17usize);
         let mut s = 88172645463325252u64;
         let mut rnd = || {
@@ -168,10 +327,10 @@ mod tests {
             (s >> 11) as f64 / (1u64 << 53) as f64
         };
         let raw: Vec<f32> = (0..w * h).map(|_| (rnd() * 20.0) as f32).collect();
-        // "smoothed" image used for the tree differs from raw on purpose
         let smooth: Vec<f32> = raw.iter().map(|&v| v * 0.5 + 1.0).collect();
-        let tree = build_max_tree(&smooth, w, h, Connectivity::Four);
-        let area = tree.attribute_area();
+        let mut tree = build_max_tree(&smooth, w, h, Connectivity::Four);
+        crate::maxtree::compute_attributes(&mut tree, &smooth);
+        let area = tree.area.clone();
         let corrected: Vec<bool> = (0..tree.num_nodes()).map(|nd| nd != 0 && rnd() < 0.3).collect();
         let seg = build_segmentation_refined(&tree, &corrected);
         assert!(seg.segment_seed.len() > 3);
@@ -179,15 +338,16 @@ mod tests {
         let dir = std::env::temp_dir().join("mto2_out_test");
         std::fs::create_dir_all(&dir).unwrap();
         let csv = dir.join("parameters.csv");
-        write_parameters_csv(&tree, &area, &seg, &raw, csv.to_str().unwrap()).unwrap();
+        // Use a non-existent input to exercise the NaN-RA/Dec path.
+        write_parameters_csv(&tree, &area, &seg, &raw, "no_such.fits", 0, csv.to_str().unwrap())
+            .unwrap();
         let text = std::fs::read_to_string(&csv).unwrap();
         let mut rows = text.lines();
-        assert_eq!(rows.next().unwrap(), "ID,Area,Flux");
+        assert_eq!(rows.next().unwrap(), "ID,Area,Flux,R_eff,Min,Max,X,Y,RA,Dec");
 
         for (i, line) in rows.enumerate() {
             let f: Vec<&str> = line.split(',').collect();
             assert_eq!(f[0].parse::<usize>().unwrap(), i + 1);
-            // flood fill of {smooth >= level} from the seed pixel
             let nd = seg.segment_seed[i] as usize;
             let seed = tree.seed_pixel[nd] as usize;
             let level = tree.level[nd];
@@ -195,12 +355,19 @@ mod tests {
             let mut stack = vec![seed];
             seen[seed] = true;
             let (mut a, mut fl) = (0u32, 0.0f64);
+            let (mut sx, mut sy, mut sxx, mut syy) = (0.0f64, 0.0f64, 0.0f64, 0.0f64);
+            let (mut mn, mut mx) = (f64::INFINITY, f64::NEG_INFINITY);
             while let Some(p) = stack.pop() {
                 a += 1;
-                fl += raw[p] as f64;
-                let (x, y) = ((p % w) as isize, (p / w) as isize);
+                let v = raw[p] as f64;
+                fl += v;
+                let (x, y) = ((p % w) as f64, (p / w) as f64);
+                sx += x; sy += y; sxx += x * x; syy += y * y;
+                if v < mn { mn = v; }
+                if v > mx { mx = v; }
+                let (xi, yi) = ((p % w) as isize, (p / w) as isize);
                 for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
-                    let (nx, ny) = (x + dx, y + dy);
+                    let (nx, ny) = (xi + dx, yi + dy);
                     if nx < 0 || ny < 0 || nx >= w as isize || ny >= h as isize { continue; }
                     let q = ny as usize * w + nx as usize;
                     if !seen[q] && smooth[q] >= level { seen[q] = true; stack.push(q); }
@@ -208,6 +375,47 @@ mod tests {
             }
             assert_eq!(f[1].parse::<u32>().unwrap(), a, "area of id {}", i + 1);
             assert!((f[2].parse::<f64>().unwrap() - fl).abs() < 1e-6 * fl.abs().max(1.0), "flux of id {}", i + 1);
+            let cx = sx / a as f64;
+            let cy = sy / a as f64;
+            let r2 = (sxx + syy) / a as f64 - (cx * cx + cy * cy);
+            let r_eff = r2.max(0.0).sqrt();
+            assert!((f[3].parse::<f64>().unwrap() - r_eff).abs() < 1e-4, "R_eff of id {}", i + 1);
+            assert!((f[4].parse::<f64>().unwrap() - mn).abs() < 1e-4, "Min of id {}", i + 1);
+            assert!((f[5].parse::<f64>().unwrap() - mx).abs() < 1e-4, "Max of id {}", i + 1);
+            // X, Y from compute_attributes == centroid from the flood fill
+            assert!((f[6].parse::<f64>().unwrap() - cx).abs() < 1e-4, "X of id {}", i + 1);
+            assert!((f[7].parse::<f64>().unwrap() - cy).abs() < 1e-4, "Y of id {}", i + 1);
+            assert!(f[8].parse::<f64>().unwrap().is_nan(), "RA should be NaN without WCS");
+            assert!(f[9].parse::<f64>().unwrap().is_nan(), "Dec should be NaN without WCS");
         }
+    }
+
+    #[test]
+    fn wcs_reference_pixel_maps_to_crval() {
+        // Build a tiny fake header with a trivial WCS.
+        let mk = |key: &str, val: &str| -> [u8; CARD] {
+            let s = format!("{key:<8}= {val:>20}");
+            let mut c = [b' '; CARD];
+            c.copy_from_slice(format!("{s:<80}").as_bytes());
+            c
+        };
+        let cards = vec![
+            mk("CRPIX1", "10.0"),
+            mk("CRPIX2", "20.0"),
+            mk("CRVAL1", "150.0"),
+            mk("CRVAL2", "2.0"),
+            mk("CD1_1", "-0.001"),
+            mk("CD1_2", "0.0"),
+            mk("CD2_1", "0.0"),
+            mk("CD2_2", "0.001"),
+        ];
+        let w = Wcs::from_cards(&cards).expect("valid wcs");
+        // 0-based pixel (9, 19) is the reference pixel.
+        let (ra, dec) = w.sky(9.0, 19.0);
+        assert!((ra - 150.0).abs() < 1e-9);
+        assert!((dec - 2.0).abs() < 1e-9);
+        // One pixel to the right → RA decreases by 0.001 deg (negative CD1_1).
+        let (ra2, _) = w.sky(10.0, 19.0);
+        assert!((ra2 - 149.999).abs() < 1e-6);
     }
 }

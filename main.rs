@@ -436,6 +436,8 @@ fn run(
         area,
         &seg,
         raw.as_deref().unwrap_or(&img),
+        path,
+        hdu_index,
         &csv_path,
     )?;
     println!("wrote {csv_path} ({} segments)", seg.segment_seed.len());
