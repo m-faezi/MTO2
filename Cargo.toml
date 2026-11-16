@@ -9,7 +9,3 @@ path = "main.rs"
 
 [dependencies]
 fitsio = "0.21"
-
-[profile.release]
-opt-level = 3
-lto = true

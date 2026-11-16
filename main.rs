@@ -1,5 +1,6 @@
 mod background;
 mod maxtree;
+mod morph_background;
 mod output;
 mod plot;
 mod refined;
@@ -8,11 +9,11 @@ mod statistical_tests;
 
 use background::estimate_background;
 use fitsio::{hdu::HduInfo, FitsFile};
-use maxtree::{build_max_tree, replace_nan, Connectivity};
+use maxtree::{build_max_tree, compute_attributes, replace_nan, Connectivity};
 use plot::{LogLogPlot, Point};
 use refined::build_segmentation_refined;
 use segment::write_segmentation_svg;
-use statistical_tests::{detect, move_up, Background};
+use statistical_tests::{detect, move_up};
 use std::{collections::HashMap, env, error::Error, process, time::Instant};
 
 fn read_fits(path: &str, hdu_index: usize) -> Result<(Vec<f32>, usize, usize), Box<dyn Error>> {
@@ -35,11 +36,9 @@ fn gaussian_kernel(sigma: f64) -> Vec<f32> {
     if sigma <= 0.0 {
         return vec![1.0];
     }
-    // scipy.ndimage.gaussian_filter: truncate=4.0, radius = int(truncate * sigma + 0.5)
     let radius = (4.0 * sigma + 0.5) as usize;
     let size = 2 * radius + 1;
     let inv_2sigma2 = 1.0 / (2.0 * sigma * sigma);
-    // Accumulate in f64, normalize, then cast to f32.
     let mut kernel64 = vec![0.0f64; size];
     let mut sum = 0.0f64;
     for i in 0..size {
@@ -51,7 +50,6 @@ fn gaussian_kernel(sigma: f64) -> Vec<f32> {
     kernel64.iter().map(|&v| (v / sum) as f32).collect()
 }
 
-/// Mirror an index into [0, n) using scipy's 'reflect' mode: d c b a | a b c d | d c b a
 #[inline]
 fn reflect(i: isize, n: isize) -> usize {
     let period = 2 * n;
@@ -59,8 +57,6 @@ fn reflect(i: isize, n: isize) -> usize {
     (if j >= n { period - 1 - j } else { j }) as usize
 }
 
-/// Separable Gaussian blur matching `scipy.ndimage.gaussian_filter`
-/// (mode='reflect', truncate=4.0).
 fn gaussian_blur(img: &[f32], width: usize, height: usize, sigma: f64) -> Vec<f32> {
     if sigma <= 0.0 {
         return img.to_vec();
@@ -68,7 +64,6 @@ fn gaussian_blur(img: &[f32], width: usize, height: usize, sigma: f64) -> Vec<f3
     let kernel = gaussian_kernel(sigma);
     let radius = kernel.len() / 2;
 
-    // Horizontal pass
     let mut tmp = vec![0.0f32; img.len()];
     for y in 0..height {
         for x in 0..width {
@@ -81,7 +76,6 @@ fn gaussian_blur(img: &[f32], width: usize, height: usize, sigma: f64) -> Vec<f3
         }
     }
 
-    // Vertical pass
     let mut out = vec![0.0f32; img.len()];
     for y in 0..height {
         for x in 0..width {
@@ -105,7 +99,6 @@ fn main() {
         "move-factor", "area-ratio",
     ];
 
-    // Named flags: `--key value` or `--key=value`. Anything else is positional.
     let mut positional: Vec<String> = Vec::new();
     let mut flags: HashMap<String, String> = HashMap::new();
     let mut it = env::args().skip(1);
@@ -200,7 +193,7 @@ fn run(
         println!("replaced {replaced} non-finite pixels with image minimum");
     }
 
-    // Print raw image stats so we can sanity-check the pipeline.
+    // Raw stats (before smoothing).
     {
         let (mn, mx) = img
             .iter()
@@ -223,7 +216,7 @@ fn run(
     // Keep the unsmoothed image for the flux column of parameters.csv.
     let raw: Option<Vec<f32>> = if s_sigma > 0.0 { Some(img.clone()) } else { None };
 
-    // MTO2 preprocessing step: Gaussian smoothing controlled by s_sigma.
+    // ---- 1. s_sigma smoothing happens BEFORE tree construction ----
     if s_sigma > 0.0 {
         let t_blur = Instant::now();
         img = gaussian_blur(&img, width, height, s_sigma);
@@ -235,7 +228,6 @@ fn run(
         println!("gaussian blur skipped (s_sigma={s_sigma:.2})");
     }
 
-    // Print smoothed image stats.
     {
         let (mn, mx) = img
             .iter()
@@ -255,27 +247,14 @@ fn run(
         );
     }
 
-    // ---- background estimation from the (smoothed) image ----
-    let t_bg = Instant::now();
-    let bg = estimate_background(&img, width, height, rejection_rate, alpha);
-    println!(
-        "background estimated in {:.2?}: mean={:.3e} sigma={:.3e} gain={:.3e}",
-        t_bg.elapsed(),
-        bg.mean,
-        bg.var.sqrt(),
-        bg.gain
-    );
-    if bg.var <= 0.0 || bg.gain == 0.0 {
-        eprintln!(
-            "WARNING: degenerate background (var={:.3e}, gain={:.3e}); \
-             significance test may be meaningless",
-            bg.var, bg.gain
-        );
-    }
-
+    // ---- 2. Tree + all attributes in one place ----
     let t1 = Instant::now();
-    let tree = build_max_tree(&img, width, height, conn);
+    let mut tree = build_max_tree(&img, width, height, conn);
     println!("built max-tree ({conn:?}) in {:.2?}", t1.elapsed());
+
+    let t_attr = Instant::now();
+    compute_attributes(&mut tree, &img);
+    println!("computed attributes in {:.2?}", t_attr.elapsed());
 
     let s = tree.stats();
     let root = tree.root();
@@ -299,10 +278,36 @@ fn run(
         tree.level[root]
     );
 
-    let t2 = Instant::now();
-    let area = tree.attribute_area();
-    let volume = tree.attribute_volume(&area);
-    println!("area + volume in {:.2?}", t2.elapsed());
+    // ---- 3. Background estimation from the (smoothed) image ----
+    let t_bg = Instant::now();
+    let mut bg = estimate_background(&img, width, height, rejection_rate, alpha);
+    println!(
+        "background estimated in {:.2?}: mean={:.3e} sigma={:.3e} gain={:.3e}",
+        t_bg.elapsed(),
+        bg.mean,
+        bg.var.sqrt(),
+        bg.gain
+    );
+
+    if !bg.mean.is_finite()
+        || !bg.var.is_finite()
+        || !bg.gain.is_finite()
+        || bg.var <= 0.0
+        || bg.gain == 0.0
+    {
+        println!("switched from constant to morphological background");
+        bg = morph_background::estimate_morphological_background(&img, &tree, alpha);
+        println!(
+            "morphological background: mean={:.3e} sigma={:.3e} gain={:.3e}",
+            bg.mean,
+            bg.var.sqrt(),
+            bg.gain
+        );
+    }
+
+    // Attributes are already on the tree — just borrow them.
+    let area: &[u32] = &tree.area;
+    let volume: &[f64] = &tree.volume;
 
     // -------- diagnostic plot --------
     let level_root = tree.level[root];
@@ -331,7 +336,7 @@ fn run(
 
     // -------- significance + segmentation --------
     let t3 = Instant::now();
-    let sel = detect(&tree, &area, &volume, &bg);
+    let sel = detect(&tree, area, volume, &bg);
     let n_sig = sel.significant.iter().filter(|b| **b).count();
     let n_obj = sel.objects.iter().filter(|b| **b).count();
     println!(
@@ -354,7 +359,7 @@ fn run(
 
     // -------- isophote refinement (MTO2 move_up) --------
     let t_mv = Instant::now();
-    let corrected = move_up(&tree, &area, &sel, &bg, move_factor, area_ratio);
+    let corrected = move_up(&tree, area, &sel, &bg, move_factor, area_ratio);
     println!(
         "move_up (move_factor={move_factor}, area_ratio={area_ratio}): {} corrected segments in {:.2?}",
         corrected.iter().filter(|b| **b).count(),
@@ -392,12 +397,11 @@ fn run(
     }
     println!("wrote {seg_svg}");
 
-    // segmentation_map.fits (0 = background, 1..K = segment ID) and parameters.csv
     output::write_segmentation_fits(path, hdu_index, &seg, width, height, "segmentation_map.fits")?;
     println!("wrote segmentation_map.fits");
     output::write_parameters_csv(
         &tree,
-        &area,
+        area,
         &seg,
         raw.as_deref().unwrap_or(&img),
         "parameters.csv",
@@ -438,20 +442,17 @@ mod tests {
 
     #[test]
     fn reflect_matches_scipy() {
-        // n = 4: indices -3..=7 -> d c b a | a b c d | d c b a
         let got: Vec<usize> = (-4..8).map(|i| reflect(i, 4)).collect();
         assert_eq!(got, vec![0, 1, 2, 3, 0, 1, 2, 3, 3, 2, 1, 0]);
     }
 
     #[test]
     fn kernel_radius_matches_scipy() {
-        // sigma=2 -> int(4*2+0.5)=8 -> 17 taps
         assert_eq!(gaussian_kernel(2.0).len(), 17);
     }
 
     #[test]
     fn blur_preserves_constant_at_edges() {
-        // Reflection must keep border pixels at the constant value (zero-padding would not).
         let img = vec![7.0f32; 12 * 9];
         let out = gaussian_blur(&img, 12, 9, 2.0);
         assert!((out[0] - 7.0).abs() < 1e-4);
@@ -460,19 +461,15 @@ mod tests {
 
     #[test]
     fn blur_smooths_impulse() {
-        // 5x5 image with a single bright pixel in the middle.
         let mut img = vec![0.0f32; 25];
         img[12] = 100.0;
         let out = gaussian_blur(&img, 5, 5, 1.0);
-        // Center must drop, neighbours must rise.
         assert!(out[12] < 100.0);
         assert!(out[7] > 0.0);
         assert!(out[11] > 0.0);
         assert!(out[13] > 0.0);
         assert!(out[17] > 0.0);
-        // Total flux must be roughly conserved.
         let sum: f32 = out.iter().sum();
         assert!((sum - 100.0).abs() < 1.0, "sum={sum}");
     }
 }
-

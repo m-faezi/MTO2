@@ -1,4 +1,10 @@
-//! Node-oriented max-tree for a 2D f32 image.
+//! Node-oriented max-tree for a 2D f32 image, plus region attributes.
+//!
+//! The attributes are computed in a single bottom-up pass over `order` (which
+//! is sorted by ascending level, so reverse iteration visits children first).
+//! Everything a downstream stage needs -- area, volume, gamma, per-node
+//! mean/variance, centroid -- is materialized here so no other module has to
+//! re-traverse the tree.
 
 const UNDEF: u32 = u32::MAX;
 
@@ -21,6 +27,7 @@ impl Connectivity {
     }
 }
 
+/// Max-tree topology. Attribute vectors are filled by `compute_attributes`.
 pub struct MaxTree {
     pub width: usize,
     pub height: usize,
@@ -29,6 +36,15 @@ pub struct MaxTree {
     pub level: Vec<f32>,
     pub seed_pixel: Vec<u32>,
     pub order: Vec<u32>,
+
+    // ---- region attributes (filled by `compute_attributes`) ----
+    pub area: Vec<u32>,
+    pub volume: Vec<f64>,
+    pub gamma: Vec<u32>,
+    pub mean: Vec<f32>,
+    pub variance: Vec<f32>,
+    pub cx: Vec<f32>,
+    pub cy: Vec<f32>,
 }
 
 pub struct TreeStats {
@@ -85,33 +101,11 @@ impl MaxTree {
         }
         (0..n).map(|k| !has_child[k]).collect()
     }
-
-    pub fn attribute_area(&self) -> Vec<u32> {
-        let n = self.num_nodes();
-        let mut area = vec![1u32; n];
-        for &nd in self.order.iter().rev() {
-            let nd = nd as usize;
-            if nd == self.root() { continue; }
-            let par = self.parent_node[nd] as usize;
-            area[par] += area[nd];
-        }
-        area
-    }
-
-    pub fn attribute_volume(&self, area: &[u32]) -> Vec<f64> {
-        let n = self.num_nodes();
-        let mut vol = vec![0.0f64; n];
-        for &nd in self.order.iter().rev() {
-            let nd = nd as usize;
-            if nd == self.root() { continue; }
-            let par = self.parent_node[nd] as usize;
-            let h = (self.level[nd] as f64 - self.level[par] as f64).abs();
-            vol[nd] += area[nd] as f64 * h;
-            vol[par] += vol[nd];
-        }
-        vol
-    }
 }
+
+// ---------------------------------------------------------------------------
+// Tree construction
+// ---------------------------------------------------------------------------
 
 #[inline]
 fn find_root(zpar: &mut [u32], mut x: u32) -> u32 {
@@ -125,6 +119,8 @@ fn find_root(zpar: &mut [u32], mut x: u32) -> u32 {
     r
 }
 
+/// Build the max-tree. Attributes are left zero-initialized; call
+/// `compute_attributes` (usually right after) to fill them.
 pub fn build_max_tree(
     img: &[f32],
     width: usize,
@@ -202,6 +198,7 @@ pub fn build_max_tree(
         }
     }
 
+    let n_nodes = parent_node.len();
     MaxTree {
         width,
         height,
@@ -210,6 +207,93 @@ pub fn build_max_tree(
         level,
         seed_pixel,
         order: node_order,
+
+        area: vec![0; n_nodes],
+        volume: vec![0.0; n_nodes],
+        gamma: vec![0; n_nodes],
+        mean: vec![0.0; n_nodes],
+        variance: vec![0.0; n_nodes],
+        cx: vec![0.0; n_nodes],
+        cy: vec![0.0; n_nodes],
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Attribute computation -- one pass, in-place on `tree`.
+// ---------------------------------------------------------------------------
+
+/// Fill `area`, `volume`, `gamma`, `mean`, `variance`, `cx`, `cy` on `tree`.
+///
+/// All accumulations are bottom-up over `tree.order.iter().rev()` (children
+/// before parents). Formulas match the original `attributes.rs` from the
+/// morph-bg project exactly:
+///   * `area[n]`     = number of pixels in node `n`'s subtree
+///   * `mean[n]`     = mean of `img` over that subtree
+///   * `variance[n]` = variance of `img` over that subtree
+///   * `cx, cy`      = centroid of that subtree
+///   * `volume[n]`   = sum over descendants d of `level[d] * area[d]`
+///   * `gamma[n]`    = topological height (max distance to a leaf)
+pub fn compute_attributes(tree: &mut MaxTree, img: &[f32]) {
+    let n = tree.num_nodes();
+    let w = tree.width;
+
+    for v in tree.area.iter_mut() { *v = 0; }
+    for v in tree.volume.iter_mut() { *v = 0.0; }
+    for v in tree.gamma.iter_mut() { *v = 0; }
+    for v in tree.mean.iter_mut() { *v = 0.0; }
+    for v in tree.variance.iter_mut() { *v = 0.0; }
+    for v in tree.cx.iter_mut() { *v = 0.0; }
+    for v in tree.cy.iter_mut() { *v = 0.0; }
+
+    let mut sum = vec![0.0f32; n];
+    let mut sum_sq = vec![0.0f32; n];
+    let mut sx = vec![0.0f32; n];
+    let mut sy = vec![0.0f32; n];
+
+    for p in 0..tree.num_pixels() {
+        let node = tree.node_of_pixel[p] as usize;
+        let (py, px) = (p / w, p % w);
+        let v = img[p];
+        tree.area[node] += 1;
+        sum[node] += v;
+        sum_sq[node] += v * v;
+        sx[node] += px as f32;
+        sy[node] += py as f32;
+    }
+
+    for &nd in tree.order.iter().rev() {
+        let node = nd as usize;
+        if node == tree.root() { continue; }
+        let p = tree.parent_node[node] as usize;
+        tree.area[p] += tree.area[node];
+        sum[p] += sum[node];
+        sum_sq[p] += sum_sq[node];
+        sx[p] += sx[node];
+        sy[p] += sy[node];
+    }
+
+    for node in 0..n {
+        let a = tree.area[node].max(1) as f64;
+        let s = sum[node] as f64;
+        let ss = sum_sq[node] as f64;
+        let m = (s / a) as f32;
+        tree.mean[node] = m;
+        let var = (ss / a) - (m as f64).powi(2);
+        tree.variance[node] = var.max(0.0) as f32;
+        tree.cx[node] = sx[node] / tree.area[node].max(1) as f32;
+        tree.cy[node] = sy[node] / tree.area[node].max(1) as f32;
+    }
+
+    for &nd in tree.order.iter().rev() {
+        let node = nd as usize;
+        if node == tree.root() {
+            tree.volume[node] += (tree.level[node] as f64) * (tree.area[node] as f64);
+            continue;
+        }
+        let p = tree.parent_node[node] as usize;
+        tree.volume[p] +=
+            tree.volume[node] + (tree.level[node] as f64) * (tree.area[node] as f64);
+        tree.gamma[p] = tree.gamma[p].max(tree.gamma[node] + 1);
     }
 }
 
@@ -223,14 +307,6 @@ pub fn replace_nan(img: &mut [f32]) -> usize {
     count
 }
 
-/// Round pixel values to integer ADU levels.
-///
-/// WARNING: only use this if your image is already integer-quantized ADU.
-/// For continuous-valued (calibrated) images this collapses the tree to a
-/// handful of nodes and destroys the statistical test. MTO2 does *not*
-/// quantize reduced/calibrated images — it only works on the spatially
-/// reduced image (different concept). We keep the function but no longer
-/// call it from `main`.
 #[allow(dead_code)]
 pub fn quantize(img: &mut [f32]) {
     for v in img.iter_mut() {
@@ -275,19 +351,55 @@ mod tests {
     }
 
     #[test]
-    fn root_volume_telescopes() {
+    fn attributes_area_root_is_all_pixels() {
         let img = vec![
             0.0, 2.0, 2.0, 0.0, 1.0, 3.0, 2.0, 1.0, 0.0, 1.0, 1.0, 4.0,
         ];
         for conn in [Connectivity::Four, Connectivity::Eight] {
-            let t = build_max_tree(&img, 4, 3, conn);
-            let area = t.attribute_area();
-            let vol = t.attribute_volume(&area);
-            assert_eq!(area[t.root()], 12);
-            let min = t.level[t.root()] as f64;
-            let expected: f64 = img.iter().map(|&v| v as f64 - min).sum();
-            assert!((vol[t.root()] - expected).abs() < 1e-9);
+            let mut t = build_max_tree(&img, 4, 3, conn);
+            compute_attributes(&mut t, &img);
+            assert_eq!(t.area[t.root()] as usize, img.len());
         }
+    }
+
+    #[test]
+    fn attributes_volume_root_sums_level_times_area() {
+        let img = vec![
+            0.0, 2.0, 2.0, 0.0, 1.0, 3.0, 2.0, 1.0, 0.0, 1.0, 1.0, 4.0,
+        ];
+        for conn in [Connectivity::Four, Connectivity::Eight] {
+            let mut t = build_max_tree(&img, 4, 3, conn);
+            compute_attributes(&mut t, &img);
+            let expected: f64 = (0..t.num_nodes())
+                .map(|n| t.level[n] as f64 * t.area[n] as f64)
+                .sum();
+            assert!((t.volume[t.root()] - expected).abs() < 1e-9);
+        }
+    }
+
+    #[test]
+    fn attributes_mean_variance_match_pixels() {
+        let img = vec![
+            0.0, 2.0, 2.0, 0.0, 1.0, 3.0, 2.0, 1.0, 0.0, 1.0, 1.0, 4.0,
+        ];
+        let mut t = build_max_tree(&img, 4, 3, Connectivity::Four);
+        compute_attributes(&mut t, &img);
+        let n = img.len() as f64;
+        let mean: f64 = img.iter().map(|&v| v as f64).sum::<f64>() / n;
+        let var: f64 = img.iter().map(|&v| (v as f64 - mean).powi(2)).sum::<f64>() / n;
+        let root = t.root();
+        assert!((t.mean[root] as f64 - mean).abs() < 1e-5);
+        assert!((t.variance[root] as f64 - var).abs() < 1e-5);
+    }
+
+    #[test]
+    fn attributes_centroid_root_is_image_center() {
+        let img = vec![1.0f32; 4 * 3];
+        let mut t = build_max_tree(&img, 4, 3, Connectivity::Four);
+        compute_attributes(&mut t, &img);
+        let root = t.root();
+        assert!((t.cx[root] - 1.5).abs() < 1e-5);
+        assert!((t.cy[root] - 1.0).abs() < 1e-5);
     }
 
     #[test]
