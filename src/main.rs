@@ -84,6 +84,7 @@ fn gaussian_blur(img: &[f32], width: usize, height: usize, sigma: f64) -> Vec<f3
 }
 
 fn main() {
+    
     const USAGE: &str = "usage: mto2 <image.fits> [--hdu 0] [--conn 4|8] \
 [--s-sigma 2.0] [--alpha 1e-6] [--rejection-rate 0.05] \
 [--move-factor 0.0] [--area-ratio 0.90] [--out-dir DIR]";

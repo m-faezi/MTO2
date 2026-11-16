@@ -128,15 +128,6 @@ Everything is written to `results/<out-dir or run_<timestamp>>/`:
 
 ---
 
-## Testing
-
-```bash
-cargo test              # unit + integration tests
-cargo test --release    # faster for large synthetic images
-```
-
----
-
 ## Quick start (one block)
 
 ```bash
@@ -186,7 +177,38 @@ MTO2/
 
 ---
 
+## Citation
+
+If you use MTO2 in your research, please cite the following paper:
+
+```bibtex
+@ARTICLE{10535192,
+  author={Hashem Faezi, Mohammad and Peletier, Reynier and Wilkinson, Michael H. F.},
+  journal={IEEE Access}, 
+  title={Multi-Spectral Source-Segmentation Using Semantically-Informed Max-Trees}, 
+  year={2024},
+  volume={12},
+  number={},
+  pages={72288-72302},
+  doi={10.1109/ACCESS.2024.3403309}
+}
+```
+
+## Acknowledgments
+
+This software was developed for **[Faint Object Detection in Multidimensional Astronomical Data](https://research.rug.nl/en/publications/faint-object-detection-in-multidimensional-astronomical-data/)** Ph.D. thesis (Mohammad H. Faezi, 2026) at the Rijksuniversiteit of Groningen under the supervision of Dr. Michael Wilkinson, Prof. Dr. Reynier Peletier and Prof. Dr. Nicolai Petkov.
+
+MTO2 is developed using the [Higra](https://github.com/higra/Higra) Python package, and builds on their example implementation of MTO: [Astronomical object detection with the Max-Tree - MMTA 2016](https://higra.readthedocs.io/en/stable/notebooks.html#illustrative-applications-from-scientific-papers).
+
+This implementation draws inspiration from [Caroline Haigh's work ](https://github.com/CarolineHaigh/mtobjects)([Teeninga et al.](#4)).
+
+## Bibliography
+
+- <a id="1">Teeninga P., Moschini U., Trager S. C., et al. (2016). “Statistical attribute filtering to detect faint extended astronomical sources”. In: *Mathematical Morphology &mdash; Theory and Applications* 1.1. DOI: [10.1515/mathm-2016-0006](https://doi.org/10.1515/mathm-2016-0006).</a>
+- <a id="2">Haigh C., Chamba N., Vanhola A., et al. (2021). “Optimising and comparing source-extraction tools using objective segmentation quality criteria”. In: *Astronomy & Astrophysics* 645. DOI: [10.1051/0004-6361/201936561](https://doi.org/10.1051/0004-6361/201936561).</a>
+- <a id="3">Salembier P., Oliveras A., & Garrido L. (1998). “Antiextensive connected operators for image and sequence processing”. In: *IEEE Transactions on Image Processing* 7.4, pp. 555–570. DOI: [10.1109/83.663500](https://doi.org/10.1109/83.663500).</a>
+
 ## License
 
-MIT
+This project is licensed under the [MIT License](https://opensource.org/license/MIT) - see the [LICENSE](LICENSE) file for details.
 
