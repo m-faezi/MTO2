@@ -1,9 +1,9 @@
 # MTO2
 
-Max-tree based source detection and segmentation for astronomical FITS images.
+Max-tree based source detection and segmentation for ultra-deep astronomical images.
 
-MTO2 builds a max-tree over a 2-D image, estimates the flat background from
-the image itself, detects significant nodes statistically, refines segment
+MTO2 builds a max-tree over the image, estimates a flat or morphological background from
+the image, detects significant nodes statistically, refines segment
 boundaries with isophote correction, and writes segmentation maps, a binary
 mask, and a per-object catalogue.
 
@@ -45,18 +45,11 @@ brew install cfitsio rustup-init
 rustup-init -y
 ```
 
-### Windows
-
-The simplest path is **WSL2** with Ubuntu, then follow the Debian/Ubuntu
-instructions above. If you must build natively, install
-[MSYS2](https://www.msys2.org) and use the `mingw-w64-x86_64-cfitsio` package,
-then install Rust via rustup with the `x86_64-pc-windows-gnu` target.
-
 ### Build
 
 ```bash
-git clone <repo-url> RMTO2
-cd RMTO2
+git clone <repo-url> MTO2
+cd MTO2
 cargo build --release
 ```
 
@@ -151,7 +144,7 @@ cargo test --release    # faster for large synthetic images
 sudo apt install -y build-essential pkg-config libcfitsio-dev
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source "$HOME/.cargo/env"
-git clone <repo-url> RMTO2 && cd RMTO2
+git clone <repo-url> MTO2 && cd MTO2
 cargo build --release
 ./target/release/mto2 image.fits --conn 8 --out-dir first_run
 ```
@@ -162,7 +155,7 @@ xcode-select --install
 brew install cfitsio
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source "$HOME/.cargo/env"
-git clone <repo-url> RMTO2 && cd RMTO2
+git clone <repo-url> MTO2 && cd MTO2
 cargo build --release
 ./target/release/mto2 image.fits --conn 8 --out-dir first_run
 ```
@@ -172,7 +165,7 @@ cargo build --release
 ## Project layout
 
 ```
-RMTO2/
+MTO2/
 ├── Cargo.toml
 ├── src/
 │   ├── main.rs                # CLI + pipeline orchestration
