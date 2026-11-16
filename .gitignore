@@ -4,6 +4,7 @@
 *.pdb
 *.svg
 *.fits
+*.csv
 
 # --- Cargo ---
 # Cargo.lock is usually committed for binaries/apps,
