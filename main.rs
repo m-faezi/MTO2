@@ -1,5 +1,6 @@
 mod background;
 mod maxtree;
+mod output;
 mod plot;
 mod refined;
 mod segment;
@@ -219,6 +220,9 @@ fn run(
         );
     }
 
+    // Keep the unsmoothed image for the flux column of parameters.csv.
+    let raw: Option<Vec<f32>> = if s_sigma > 0.0 { Some(img.clone()) } else { None };
+
     // MTO2 preprocessing step: Gaussian smoothing controlled by s_sigma.
     if s_sigma > 0.0 {
         let t_blur = Instant::now();
@@ -388,6 +392,18 @@ fn run(
     }
     println!("wrote {seg_svg}");
 
+    // segmentation_map.fits (0 = background, 1..K = segment ID) and parameters.csv
+    output::write_segmentation_fits(path, hdu_index, &seg, width, height, "segmentation_map.fits")?;
+    println!("wrote segmentation_map.fits");
+    output::write_parameters_csv(
+        &tree,
+        &area,
+        &seg,
+        raw.as_deref().unwrap_or(&img),
+        "parameters.csv",
+    )?;
+    println!("wrote parameters.csv ({} segments)", seg.segment_seed.len());
+
     Ok(())
 }
 
@@ -459,3 +475,4 @@ mod tests {
         assert!((sum - 100.0).abs() < 1.0, "sum={sum}");
     }
 }
+
