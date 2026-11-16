@@ -1,4 +1,8 @@
 //! Minimal SVG log-log scatter plot. No external crates.
+//!
+//! Points are rasterized into a fixed-resolution heatmap so the SVG size is
+//! bounded by the plot area, not by the number of input points. This is what
+//! keeps the file in the MB range even for images with millions of nodes.
 
 use std::io::{self, Write};
 
@@ -87,6 +91,7 @@ fn xml_escape(s: &str) -> String {
 
 impl<'a> LogLogPlot<'a> {
     pub fn write_svg<Wr: Write>(&self, w: &mut Wr) -> io::Result<()> {
+        // ---- collect valid points in log space ----
         let mut xs = Vec::new();
         let mut ys = Vec::new();
         let mut cs = Vec::new();
@@ -124,13 +129,37 @@ impl<'a> LogLogPlot<'a> {
         let cmax = cs.iter().copied().fold(f64::NEG_INFINITY, f64::max);
         let cspan = (cmax - cmin).max(1e-12);
 
+        // ---- bin into a fixed grid (heatmap) ----
+        let gw = plot_w.max(1.0) as usize;
+        let gh = plot_h.max(1.0) as usize;
+        let mut sum_r = vec![0u64; gw * gh];
+        let mut sum_g = vec![0u64; gw * gh];
+        let mut sum_b = vec![0u64; gw * gh];
+        let mut cnt = vec![0u32; gw * gh];
+        for i in 0..xs.len() {
+            let fx = (xs[i] - x0) / xspan;
+            let fy = (ys[i] - y0) / yspan;
+            if !(0.0..1.0).contains(&fx) || !(0.0..1.0).contains(&fy) {
+                continue;
+            }
+            let gx = ((fx * gw as f64) as usize).min(gw - 1);
+            let gy = ((fy * gh as f64) as usize).min(gh - 1);
+            let gy = gh - 1 - gy; // flip so row 0 is top
+            let idx = gy * gw + gx;
+            let (r, g, b) = color_of((cs[i] - cmin) / cspan);
+            sum_r[idx] += r as u64;
+            sum_g[idx] += g as u64;
+            sum_b[idx] += b as u64;
+            cnt[idx] += 1;
+        }
+
+        // ---- emit SVG ----
         writeln!(w, r##"<?xml version="1.0" encoding="UTF-8"?>"##)?;
         writeln!(
             w,
-            r##"<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" font-family="sans-serif">"##
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" font-family="sans-serif" shape-rendering="crispEdges">"##
         )?;
         writeln!(w, r##"<rect width="{W}" height="{H}" fill="white"/>"##)?;
-
         writeln!(
             w,
             r##"<rect x="{PAD_L}" y="{PAD_T}" width="{plot_w}" height="{plot_h}" fill="none" stroke="#222" stroke-width="1"/>"##
@@ -202,17 +231,24 @@ impl<'a> LogLogPlot<'a> {
             }
         }
 
-        let mut idx: Vec<usize> = (0..xs.len()).collect();
-        idx.sort_by(|&i, &j| {
-            cs[i].partial_cmp(&cs[j]).unwrap_or(std::cmp::Ordering::Equal)
-        });
-        for i in idx {
-            let (r, g, b) = color_of((cs[i] - cmin) / cspan);
-            writeln!(
-                w,
-                r##"<circle cx="{:.2}" cy="{:.2}" r="1.8" fill="rgb({r},{g},{b})" fill-opacity="0.75"/>"##,
-                sx(xs[i]), sy(ys[i])
-            )?;
+        // ---- heatmap cells ----
+        for gy in 0..gh {
+            for gx in 0..gw {
+                let idx = gy * gw + gx;
+                if cnt[idx] == 0 { continue; }
+                let n = cnt[idx] as u64;
+                let (r, g, b) = (
+                    (sum_r[idx] / n) as u8,
+                    (sum_g[idx] / n) as u8,
+                    (sum_b[idx] / n) as u8,
+                );
+                let px = PAD_L + gx as f64;
+                let py = PAD_T + gy as f64;
+                writeln!(
+                    w,
+                    r##"<rect x="{px:.1}" y="{py:.1}" width="1" height="1" fill="rgb({r},{g},{b})"/>"##
+                )?;
+            }
         }
 
         writeln!(
@@ -236,6 +272,7 @@ impl<'a> LogLogPlot<'a> {
             xml_escape(self.title)
         )?;
 
+        // ---- colour bar ----
         let cb_x = W - PAD_R + 26.0;
         let cb_w = 16.0;
         let cb_y0 = PAD_T + 10.0;
