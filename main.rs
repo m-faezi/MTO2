@@ -430,6 +430,10 @@ fn run(
     output::write_segmentation_fits(path, hdu_index, &seg, width, height, &seg_fits)?;
     println!("wrote {seg_fits}");
 
+    let mask_fits = out("binary_mask.fits".into());
+    output::write_binary_mask_fits(path, hdu_index, &seg, width, height, &mask_fits)?;
+    println!("wrote {mask_fits}");
+
     let csv_path = out("parameters.csv".into());
     output::write_parameters_csv(
         &tree,

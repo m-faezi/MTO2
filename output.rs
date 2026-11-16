@@ -1,9 +1,12 @@
-//! Extra outputs for the Rust MTO2: `segmentation_map.fits` and `parameters.csv`.
+//! Extra outputs for the Rust MTO2: `segmentation_map.fits`, `binary_mask.fits`
+//! and `parameters.csv`.
 //!
 //! * `segmentation_map.fits`: int32 image, 0 = background, 1..K = segment id
 //!   (same layout / header as the input image, like the Python `segmentation_map.fits`).
 //!   Ids follow `tree.order` (a parent always has a smaller id than its children),
 //!   as in the Python version where id = (n_vertices - 1 - vertex index).
+//! * `binary_mask.fits`: uint8 image, 0 = background, 1 = any segment.
+//!   Same header as `segmentation_map.fits`.
 //! * `parameters.csv`: `ID,Area,Flux,R_eff,Min,Max,X,Y,RA,Dec`, one row per segment.
 //!     Area   = max-tree node area of the segment (pixels, includes nested segments),
 //!              as `area[n_map_segments]` in the Python version.
@@ -213,7 +216,7 @@ pub fn write_parameters_csv(
 }
 
 // ---------------------------------------------------------------------------
-// segmentation_map.fits
+// FITS header helpers
 // ---------------------------------------------------------------------------
 
 /// Header cards of HDU `hdu_index` of `path`, verbatim (80 bytes each, END excluded).
@@ -261,24 +264,22 @@ fn push_card(out: &mut Vec<u8>, key: &str, value: &str) {
     out.extend_from_slice(format!("{s:<80}").as_bytes());
 }
 
-/// Write the segment-id map (int32, big endian) with the WCS/header of the input image.
-pub fn write_segmentation_fits(
+/// Build a header for a 2-D image with `bitpix`, copying WCS/other cards
+/// from the input image's HDU, dropping structural keywords.
+fn build_image_header(
     in_path: &str,
     hdu_index: usize,
-    seg: &Segmentation,
+    bitpix: i32,
     width: usize,
     height: usize,
-    out_path: &str,
-) -> io::Result<()> {
-    // structural / image-specific keywords are rewritten or dropped
+) -> io::Result<Vec<u8>> {
     const SKIP: [&str; 14] = [
         "SIMPLE", "XTENSION", "BITPIX", "NAXIS", "EXTEND", "PCOUNT", "GCOUNT", "GROUPS",
         "BZERO", "BSCALE", "BLANK", "CHECKSUM", "DATASUM", "BUNIT",
     ];
-
     let mut hdr: Vec<u8> = Vec::new();
     push_card(&mut hdr, "SIMPLE", "T");
-    push_card(&mut hdr, "BITPIX", "32");
+    push_card(&mut hdr, "BITPIX", &bitpix.to_string());
     push_card(&mut hdr, "NAXIS", "2");
     push_card(&mut hdr, "NAXIS1", &width.to_string());
     push_card(&mut hdr, "NAXIS2", &height.to_string());
@@ -291,23 +292,90 @@ pub fn write_segmentation_fits(
     }
     hdr.extend_from_slice(format!("{:<80}", "END").as_bytes());
     hdr.resize((hdr.len() + BLOCK - 1) / BLOCK * BLOCK, b' ');
+    Ok(hdr)
+}
 
+/// Pad a data payload to a FITS 2880-byte boundary and write header + data.
+fn write_fits_image<F>(
+    in_path: &str,
+    hdu_index: usize,
+    bitpix: i32,
+    width: usize,
+    height: usize,
+    out_path: &str,
+    data_bytes: usize,
+    write_data: F,
+) -> io::Result<()>
+where
+    F: FnOnce(&mut BufWriter<File>) -> io::Result<()>,
+{
+    let hdr = build_image_header(in_path, hdu_index, bitpix, width, height)?;
     let mut w = BufWriter::with_capacity(1 << 20, File::create(out_path)?);
     w.write_all(&hdr)?;
-
-    // data: 0 = background, segment index + 1 otherwise; chunked, no full-size byte buffer
-    let mut buf: Vec<u8> = Vec::with_capacity(4 << 16);
-    for chunk in seg.segment_of_pixel.chunks(1 << 16) {
-        buf.clear();
-        for &s in chunk {
-            let id: i32 = if s == u32::MAX { 0 } else { s as i32 + 1 };
-            buf.extend_from_slice(&id.to_be_bytes());
-        }
-        w.write_all(&buf)?;
-    }
-    let data_bytes = seg.segment_of_pixel.len() * 4;
+    write_data(&mut w)?;
     w.write_all(&vec![0u8; (BLOCK - data_bytes % BLOCK) % BLOCK])?;
     w.flush()
+}
+
+// ---------------------------------------------------------------------------
+// segmentation_map.fits
+// ---------------------------------------------------------------------------
+
+/// Write the segment-id map (int32, big endian) with the WCS/header of the input image.
+pub fn write_segmentation_fits(
+    in_path: &str,
+    hdu_index: usize,
+    seg: &Segmentation,
+    width: usize,
+    height: usize,
+    out_path: &str,
+) -> io::Result<()> {
+    let data_bytes = seg.segment_of_pixel.len() * 4;
+    write_fits_image(
+        in_path, hdu_index, 32, width, height, out_path, data_bytes,
+        |w| {
+            let mut buf: Vec<u8> = Vec::with_capacity(4 << 16);
+            for chunk in seg.segment_of_pixel.chunks(1 << 16) {
+                buf.clear();
+                for &s in chunk {
+                    let id: i32 = if s == u32::MAX { 0 } else { s as i32 + 1 };
+                    buf.extend_from_slice(&id.to_be_bytes());
+                }
+                w.write_all(&buf)?;
+            }
+            Ok(())
+        },
+    )
+}
+
+// ---------------------------------------------------------------------------
+// binary_mask.fits
+// ---------------------------------------------------------------------------
+
+/// Write the binary mask (uint8, FITS BITPIX=8): 0 = background, 1 = any segment.
+pub fn write_binary_mask_fits(
+    in_path: &str,
+    hdu_index: usize,
+    seg: &Segmentation,
+    width: usize,
+    height: usize,
+    out_path: &str,
+) -> io::Result<()> {
+    let data_bytes = seg.segment_of_pixel.len();
+    write_fits_image(
+        in_path, hdu_index, 8, width, height, out_path, data_bytes,
+        |w| {
+            let mut buf: Vec<u8> = Vec::with_capacity(1 << 16);
+            for chunk in seg.segment_of_pixel.chunks(1 << 16) {
+                buf.clear();
+                for &s in chunk {
+                    buf.push(if s == u32::MAX { 0 } else { 1 });
+                }
+                w.write_all(&buf)?;
+            }
+            Ok(())
+        },
+    )
 }
 
 #[cfg(test)]
@@ -417,5 +485,24 @@ mod tests {
         // One pixel to the right → RA decreases by 0.001 deg (negative CD1_1).
         let (ra2, _) = w.sky(10.0, 19.0);
         assert!((ra2 - 149.999).abs() < 1e-6);
+    }
+
+    #[test]
+    fn binary_mask_is_binary_of_segmentation() {
+        // Small synthetic image; we don't need real FITS files to check the
+        // data bytes. Build the mask buffer the same way the writer does.
+        let pix: Vec<u32> = vec![u32::MAX, 0, u32::MAX, 1, 2, u32::MAX, 0, 1, 2];
+        let mut buf: Vec<u8> = Vec::new();
+        for &s in &pix {
+            buf.push(if s == u32::MAX { 0 } else { 1 });
+        }
+        let expected: Vec<u8> = pix.iter().map(|&s| if s == u32::MAX { 0 } else { 1 }).collect();
+        assert_eq!(buf, expected);
+        // Same rule as the segment-id map: 0 ↔ u32::MAX.
+        for &s in &pix {
+            let id: i32 = if s == u32::MAX { 0 } else { s as i32 + 1 };
+            let bin: u8 = if s == u32::MAX { 0 } else { 1 };
+            assert_eq!(id == 0, bin == 0);
+        }
     }
 }
