@@ -1,19 +1,12 @@
-mod background;
-mod maxtree;
-mod morph_background;
-mod output;
-mod plot;
-mod refined;
-mod segment;
-mod statistical_tests;
-
-use background::estimate_background;
 use fitsio::{hdu::HduInfo, FitsFile};
-use maxtree::{build_max_tree, compute_attributes, replace_nan, Connectivity};
-use plot::{LogLogPlot, Point};
-use refined::build_segmentation_refined;
-use segment::write_segmentation_svg;
-use statistical_tests::{detect, move_up};
+use mto2::background::estimate_background;
+use mto2::maxtree::{build_max_tree, compute_attributes, replace_nan, Connectivity};
+use mto2::morph_background;
+use mto2::output;
+use mto2::plot::{LogLogPlot, Point};
+use mto2::refined::build_segmentation_refined;
+use mto2::segment::write_segmentation_svg;
+use mto2::statistical_tests::{detect, move_up};
 use std::{collections::HashMap, env, error::Error, process, time::Instant};
 
 fn read_fits(path: &str, hdu_index: usize) -> Result<(Vec<f32>, usize, usize), Box<dyn Error>> {

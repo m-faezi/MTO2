@@ -1,2 +1,199 @@
-# RMTO
+# MTO2
+
+Max-tree based source detection and segmentation for astronomical FITS images.
+
+MTO2 builds a max-tree over a 2-D image, estimates the flat background from
+the image itself, detects significant nodes statistically, refines segment
+boundaries with isophote correction, and writes segmentation maps, a binary
+mask, and a per-object catalogue.
+
+---
+
+## Installation
+
+### Prerequisites
+
+- **Rust ≥ 1.70** — install via [rustup](https://rustup.rs):
+  ```bash
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  ```
+- **cfitsio** development headers (required by the `fitsio` crate).
+
+### Linux
+
+**Debian / Ubuntu**
+```bash
+sudo apt update
+sudo apt install -y build-essential pkg-config libcfitsio-dev
+```
+
+**Fedora / RHEL**
+```bash
+sudo dnf install -y gcc make pkgconfig cfitsio-devel
+```
+
+**Arch**
+```bash
+sudo pacman -S --needed base-devel cfitsio
+```
+
+### macOS
+
+```bash
+xcode-select --install          # C toolchain
+brew install cfitsio rustup-init
+rustup-init -y
+```
+
+### Windows
+
+The simplest path is **WSL2** with Ubuntu, then follow the Debian/Ubuntu
+instructions above. If you must build natively, install
+[MSYS2](https://www.msys2.org) and use the `mingw-w64-x86_64-cfitsio` package,
+then install Rust via rustup with the `x86_64-pc-windows-gnu` target.
+
+### Build
+
+```bash
+git clone <repo-url> RMTO2
+cd RMTO2
+cargo build --release
+```
+
+Binary: `target/release/mto2`
+
+### Install as a system command (optional)
+
+```bash
+cargo install --path .
+# now `mto2` is on your PATH
+```
+
+---
+
+## Usage
+
+```bash
+mto2 <image.fits> [options]
+```
+
+### Options
+
+| Flag               | Default     | Meaning                                      |
+|--------------------|-------------|----------------------------------------------|
+| `--hdu N`          | `0`         | FITS HDU index                               |
+| `--conn 4\|8`      | `4`         | Max-tree connectivity                        |
+| `--s-sigma F`      | `2.0`       | Gaussian smoothing sigma (`0` = no smoothing)|
+| `--alpha F`        | `1e-6`      | Significance level                           |
+| `--rejection-rate` | `0.05`      | Flat-tile rejection rate                     |
+| `--move-factor F`  | `0.0`       | Isophote refinement factor                   |
+| `--area-ratio F`   | `0.90`      | Isophote area ratio                          |
+| `--out-dir DIR`    | timestamped | Output directory under `results/`            |
+
+### Examples
+
+Basic run:
+```bash
+mto2 image.fits
+```
+
+Eight-connectivity, named output directory:
+```bash
+mto2 image.fits --conn 8 --out-dir run_8conn
+```
+
+Skip smoothing and use a stricter significance threshold:
+```bash
+mto2 image.fits --s-sigma 0 --alpha 1e-8
+```
+
+Via cargo (no install step):
+```bash
+cargo run --release -- image.fits --conn 8
+```
+
+### Outputs
+
+Everything is written to `results/<out-dir or run_<timestamp>>/`:
+
+| File | Content |
+|------|---------|
+| `volume_vs_area_hdu<N>_<Conn>.svg` | Log-log area vs. volume scatter of tree nodes |
+| `segmentation_hdu<N>_<Conn>_s<..>_mf<..>_ar<..>.svg` | Colour-coded segmentation map |
+| `segmentation_map.fits` | int32 map: `0` = background, `1..K` = segment id |
+| `binary_mask.fits` | uint8 mask: `0` = background, `1` = any segment |
+| `parameters.csv` | `ID,Area,Flux,R_eff,Min,Max,X,Y,RA,Dec` per segment |
+
+`parameters.csv` columns:
+
+- **Area** — tree-node area (pixels, includes nested segments)
+- **Flux** — sum of the *unsmoothed* image over the segment's pixels
+- **R_eff** — effective radius from pixel moments
+- **Min / Max** — extrema of the unsmoothed image over the segment
+- **X / Y** — pixel centroid
+- **RA / Dec** — world coordinates from the FITS WCS (NaN if absent)
+
+---
+
+## Testing
+
+```bash
+cargo test              # unit + integration tests
+cargo test --release    # faster for large synthetic images
+```
+
+---
+
+## Quick start (one block)
+
+```bash
+# Linux (Debian/Ubuntu)
+sudo apt install -y build-essential pkg-config libcfitsio-dev
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
+git clone <repo-url> RMTO2 && cd RMTO2
+cargo build --release
+./target/release/mto2 image.fits --conn 8 --out-dir first_run
+```
+
+```bash
+# macOS
+xcode-select --install
+brew install cfitsio
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
+git clone <repo-url> RMTO2 && cd RMTO2
+cargo build --release
+./target/release/mto2 image.fits --conn 8 --out-dir first_run
+```
+
+---
+
+## Project layout
+
+```
+RMTO2/
+├── Cargo.toml
+├── src/
+│   ├── main.rs                # CLI + pipeline orchestration
+│   ├── lib.rs                 # public module exports
+│   ├── maxtree.rs             # max-tree construction + attributes
+│   ├── background.rs          # flat-tile background estimator
+│   ├── morph_background.rs    # morphological fallback estimator
+│   ├── statistical_tests.rs   # significance detection + move_up
+│   ├── refined.rs             # refined segmentation
+│   ├── segment.rs             # segmentation from contracted tree
+│   ├── output.rs              # FITS maps + parameters.csv
+│   └── plot.rs                # SVG log-log diagnostic plot
+├── tests/
+│   └── integration.rs
+└── examples/
+    └── run_pipeline.rs
+```
+
+---
+
+## License
+
+MIT
 
