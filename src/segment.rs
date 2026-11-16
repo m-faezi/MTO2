@@ -73,6 +73,10 @@ pub fn build_segmentation(tree: &MaxTree, sel: &Selection) -> Segmentation {
 ///   * the rendered image is capped at `MAX_W` pixels wide (aspect preserved)
 ///     by block-majority downsampling;
 ///   * horizontal runs of identical id are collapsed into a single `<rect>`.
+///
+/// The rendered map is flipped **both vertically and horizontally**
+/// (a 180° rotation) relative to `segment_of_pixel`. The FITS products
+/// (`segmentation_map.fits`, `binary_mask.fits`) are unaffected.
 pub fn write_segmentation_svg<W: Write>(
     w: &mut W,
     seg: &Segmentation,
@@ -120,78 +124,86 @@ pub fn write_segmentation_svg<W: Write>(
     // Build the downsampled id grid: each output cell takes the most common
     // id in its `scale x scale` source block. O(pixels) with a small Vec
     // per block, no per-pixel allocation.
+    //
+    // The map is flipped both horizontally and vertically: output cell
+    // `(ox, oy)` samples source block `(out_w-1-ox, out_h-1-oy)`.
     let mut grid = vec![u32::MAX; out_w * out_h];
     if scale == 1 {
-        grid.copy_from_slice(&seg.segment_of_pixel);
+        // 180° rotation of a row-major 2D buffer == reverse the flat buffer.
+        let src = &seg.segment_of_pixel;
+        for i in 0..grid.len() {
+            grid[i] = src[src.len() - 1 - i];
+        }
     } else {
         let mut keys: Vec<u32> = Vec::with_capacity(16);
         let mut vals: Vec<u32> = Vec::with_capacity(16);
         for oy in 0..out_h {
-            let y0 = oy * scale;
-            let y1 = (y0 + scale).min(height);
+            // Mirror the block row index (vertical flip).
+            let sy0 = (out_h - 1 - oy) * scale;
+            let sy1 = (sy0 + scale).min(height);
             for ox in 0..out_w {
-                let x0 = ox * scale;
-                let x1 = (x0 + scale).min(width);
+                // Mirror the block column index (horizontal flip).
+                let sx0 = (out_w - 1 - ox) * scale;
+                let sx1 = (sx0 + scale).min(width);
                 keys.clear();
                 vals.clear();
-                for y in y0..y1 {
-                    let row = &seg.segment_of_pixel[y * width..(y + 1) * width];
-                    for &s in &row[x0..x1] {
-                        if let Some(k) = keys.iter().position(|&k| k == s) {
+                for y in sy0..sy1 {
+                    let row = &seg.segment_of_pixel[y * width..];
+                    for x in sx0..sx1 {
+                        let id = row[x];
+                        if let Some(k) = keys.iter().position(|&k| k == id) {
                             vals[k] += 1;
                         } else {
-                            keys.push(s);
+                            keys.push(id);
                             vals.push(1);
                         }
                     }
                 }
-                // mode; ties go to the lowest id for determinism
-                let mut best_i = 0;
-                for i in 1..keys.len() {
-                    if vals[i] > vals[best_i]
-                        || (vals[i] == vals[best_i] && keys[i] < keys[best_i])
-                    {
-                        best_i = i;
+                // Majority vote.
+                let mut best = u32::MAX;
+                let mut best_n = 0u32;
+                for (&k, &v) in keys.iter().zip(vals.iter()) {
+                    if v > best_n {
+                        best_n = v;
+                        best = k;
                     }
                 }
-                grid[oy * out_w + ox] =
-                    if keys.is_empty() { u32::MAX } else { keys[best_i] };
+                grid[oy * out_w + ox] = best;
             }
         }
     }
 
-    let y_off = pad + 24;
-    let mut buf = String::with_capacity(1 << 16);
+    // Emit horizontal runs of identical colour as one <rect>.
     for oy in 0..out_h {
-        let row = &grid[oy * out_w..(oy + 1) * out_w];
-        let mut x = 0;
-        while x < out_w {
-            let s = row[x];
-            let mut x_end = x + 1;
-            while x_end < out_w && row[x_end] == s {
-                x_end += 1;
+        let mut ox = 0usize;
+        while ox < out_w {
+            let id = grid[oy * out_w + ox];
+            let mut run = 1usize;
+            while ox + run < out_w && grid[oy * out_w + ox + run] == id {
+                run += 1;
             }
-            let run = x_end - x;
-            let fill = if s == u32::MAX { BG } else { colours[s as usize].as_str() };
-            buf.push_str(&format!(
-                r##"<rect x="{:.1}" y="{:.1}" width="{}" height="1" fill="{fill}"/>"##,
-                (pad + x) as f64,
-                (y_off + oy) as f64,
+            let fill = if id == u32::MAX {
+                BG
+            } else {
+                colours.get(id as usize).map(String::as_str).unwrap_or(BG)
+            };
+            writeln!(
+                w,
+                r##"<rect x="{}" y="{}" width="{}" height="1" fill="{}"/>"##,
+                pad + ox,
+                pad + 30 + oy,
                 run,
-            ));
-            buf.push('\n');
-            if buf.len() >= 1 << 15 {
-                w.write_all(buf.as_bytes())?;
-                buf.clear();
-            }
-            x = x_end;
+                fill
+            )?;
+            ox += run;
         }
     }
-    w.write_all(buf.as_bytes())?;
+
     writeln!(w, "</svg>")?;
     Ok(())
 }
 
+/// HSL → RGB, both in [0, 1]. `h` in degrees.
 fn hsl_to_rgb(h: f64, s: f64, l: f64) -> (u8, u8, u8) {
     let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
     let hp = h / 60.0;
@@ -205,9 +217,6 @@ fn hsl_to_rgb(h: f64, s: f64, l: f64) -> (u8, u8, u8) {
         _ => (c, 0.0, x),
     };
     let m = l - c / 2.0;
-    (
-        (((r1 + m) * 255.0) as i32).clamp(0, 255) as u8,
-        (((g1 + m) * 255.0) as i32).clamp(0, 255) as u8,
-        (((b1 + m) * 255.0) as i32).clamp(0, 255) as u8,
-    )
+    let to_u8 = |v: f64| ((v + m).clamp(0.0, 1.0) * 255.0).round() as u8;
+    (to_u8(r1), to_u8(g1), to_u8(b1))
 }
