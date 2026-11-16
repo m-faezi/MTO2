@@ -169,10 +169,7 @@ MTO2/
 │   ├── segment.rs             # segmentation from contracted tree
 │   ├── output.rs              # FITS maps + parameters.csv
 │   └── plot.rs                # SVG log-log diagnostic plot
-├── tests/
-│   └── integration.rs
-└── examples/
-    └── run_pipeline.rs
+
 ```
 
 ---
