@@ -83,6 +83,9 @@ mto2 <image.fits> [options]
 | `--area-ratio F`   | `0.90`      | Isophote area ratio                          |
 | `--out-dir DIR`    | timestamped | Output directory under `results/`            |
 
+![Preview](assets/move-factor.gif)
+
+
 ### Examples
 
 Basic run:
