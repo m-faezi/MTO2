@@ -195,10 +195,6 @@ If you use MTO2 in your research, please cite the following paper:
 
 This software was developed for **[Faint Object Detection in Multidimensional Astronomical Data](https://research.rug.nl/en/publications/faint-object-detection-in-multidimensional-astronomical-data/)** Ph.D. thesis (Mohammad H. Faezi, 2026) at the Rijksuniversiteit of Groningen under the supervision of Dr. Michael Wilkinson, Prof. Dr. Reynier Peletier and Prof. Dr. Nicolai Petkov.
 
-MTO2 is developed using the [Higra](https://github.com/higra/Higra) Python package, and builds on their example implementation of MTO: [Astronomical object detection with the Max-Tree - MMTA 2016](https://higra.readthedocs.io/en/stable/notebooks.html#illustrative-applications-from-scientific-papers).
-
-This implementation draws inspiration from [Caroline Haigh's work ](https://github.com/CarolineHaigh/mtobjects)([Teeninga et al.](#4)).
-
 ## Bibliography
 
 - <a id="1">Teeninga P., Moschini U., Trager S. C., et al. (2016). “Statistical attribute filtering to detect faint extended astronomical sources”. In: *Mathematical Morphology &mdash; Theory and Applications* 1.1. DOI: [10.1515/mathm-2016-0006](https://doi.org/10.1515/mathm-2016-0006).</a>
