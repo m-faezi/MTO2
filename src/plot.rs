@@ -45,22 +45,60 @@ fn smooth(x: f32) -> f32 {
     x * x * (3.0 - 2.0 * x)
 }
 
+/// Generate tick values for a log axis, thinning the mantissas as the axis
+/// spans more decades so labels never overlap.
+///
+/// * <= 2 decades  -> all minor ticks (1..=9)
+/// * 3..=4 decades -> 1, 2, 5
+/// * 5..=6 decades -> 1, 2
+/// * 7+ decades    -> 1 only (one label per decade)
 fn nice_log_ticks(lo: f64, hi: f64) -> Vec<f64> {
     let mut ticks = Vec::new();
     if !(lo.is_finite() && hi.is_finite()) || hi <= lo {
         return ticks;
     }
-    let mut decade = lo.log10().floor();
-    let top = hi.log10().ceil();
-    while decade <= top {
+    let lo_exp = lo.log10().floor();
+    let hi_exp = hi.log10().ceil();
+    let n_decades = (hi_exp - lo_exp) as i32;
+
+    let mantissas: &[u32] = if n_decades <= 2 {
+        &[1, 2, 3, 4, 5, 6, 7, 8, 9]
+    } else if n_decades <= 4 {
+        &[1, 2, 5]
+    } else if n_decades <= 6 {
+        &[1, 2]
+    } else {
+        &[1]
+    };
+
+    let mut decade = lo_exp;
+    while decade <= hi_exp {
         let base = 10f64.powf(decade);
-        for m in 1..=9 {
+        for &m in mantissas {
             let v = m as f64 * base;
-            if v >= lo && v <= hi { ticks.push(v); }
+            if v >= lo && v <= hi {
+                ticks.push(v);
+            }
         }
         decade += 1.0;
     }
     ticks
+}
+
+/// Hard cap on the number of ticks: keep every k-th tick, preserving the
+/// first and last so the axis endpoints stay labeled.
+fn thin_ticks(ticks: Vec<f64>, max_ticks: usize) -> Vec<f64> {
+    if ticks.len() <= max_ticks || max_ticks == 0 {
+        return ticks;
+    }
+    let k = (ticks.len() as f64 / max_ticks as f64).ceil() as usize;
+    let last = ticks.len() - 1;
+    ticks
+        .into_iter()
+        .enumerate()
+        .filter(|(i, _)| i % k == 0 || *i == last)
+        .map(|(_, v)| v)
+        .collect()
 }
 
 fn fmt_log_tick(v: f64) -> String {
@@ -165,8 +203,9 @@ impl<'a> LogLogPlot<'a> {
             r##"<rect x="{PAD_L}" y="{PAD_T}" width="{plot_w}" height="{plot_h}" fill="none" stroke="#222" stroke-width="1"/>"##
         )?;
 
-        let xticks = nice_log_ticks(10f64.powf(x0), 10f64.powf(x1));
-        let yticks = nice_log_ticks(10f64.powf(y0), 10f64.powf(y1));
+        // Ticks are thinned so labels don't overlap on wide log ranges.
+        let xticks = thin_ticks(nice_log_ticks(10f64.powf(x0), 10f64.powf(x1)), 12);
+        let yticks = thin_ticks(nice_log_ticks(10f64.powf(y0), 10f64.powf(y1)), 12);
         for t in &xticks {
             let x = sx(t.log10());
             if x < PAD_L - 0.5 || x > W - PAD_R + 0.5 { continue; }
