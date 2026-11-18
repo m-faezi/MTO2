@@ -22,6 +22,7 @@ use crate::statistical_tests::Background;
 // ---------------------------------------------------------------------------
 
 /// Regularized upper incomplete gamma function Q(a, x).
+#[cfg(test)]
 fn gamma_q(a: f64, x: f64) -> f64 {
     if x < 0.0 || a <= 0.0 {
         return f64::NAN;
@@ -310,6 +311,7 @@ struct Scratch {
 }
 
 impl Scratch {
+    #[cfg(test)]
     fn new() -> Self {
         Self::default()
     }
