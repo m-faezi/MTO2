@@ -13,7 +13,7 @@ mask, and a per-object catalogue.
 
 ### Prerequisites
 
-- **Rust ≥ 1.70** — install via [rustup](https://rustup.rs):
+- **Rust ≥ 1.100** — install via [rustup](https://rustup.rs):
   ```bash
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
   ```
