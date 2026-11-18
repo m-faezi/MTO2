@@ -86,7 +86,7 @@ mto2 <image.fits> [options]
 ![Preview](assets/move-factor.gif)
 
 <p align="center">
-  <img src="assets/segmentation_hdu0_Eight_s1.2_mf0_ar0.9.svg" alt="Segmentation">
+  <img src="assets/segmentation_hdu0_Eight_s1.2_mf0_ar0.9.svg" alt="Segmentation" width="60%">
 </p>
 
 ### Examples
