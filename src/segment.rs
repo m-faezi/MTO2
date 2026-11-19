@@ -74,8 +74,8 @@ pub fn build_segmentation(tree: &MaxTree, sel: &Selection) -> Segmentation {
 ///     by block-majority downsampling;
 ///   * horizontal runs of identical id are collapsed into a single `<rect>`.
 ///
-/// The rendered map is flipped **both vertically and horizontally**
-/// (a 180° rotation) relative to `segment_of_pixel`. The FITS products
+/// The rendered map is flipped **vertically only** relative to
+/// `segment_of_pixel`. The FITS products
 /// (`segmentation_map.fits`, `binary_mask.fits`) are unaffected.
 pub fn write_segmentation_svg<W: Write>(
     w: &mut W,
@@ -125,25 +125,20 @@ pub fn write_segmentation_svg<W: Write>(
     // id in its `scale x scale` source block. O(pixels) with a small Vec
     // per block, no per-pixel allocation.
     //
-    // The map is flipped both horizontally and vertically: output cell
-    // `(ox, oy)` samples source block `(out_w-1-ox, out_h-1-oy)`.
-    let mut grid = vec![u32::MAX; out_w * out_h];
-    if scale == 1 {
-        // 180° rotation of a row-major 2D buffer == reverse the flat buffer.
-        let src = &seg.segment_of_pixel;
-        for i in 0..grid.len() {
-            grid[i] = src[src.len() - 1 - i];
-        }
+    // The vertical flip is applied at emit time (row y-position), so the grid
+    // is built unflipped and, when scale == 1, borrowed with no copy at all.
+    let owned: Vec<u32>;
+    let grid: &[u32] = if scale == 1 {
+        &seg.segment_of_pixel
     } else {
+        let mut g = vec![u32::MAX; out_w * out_h];
         let mut keys: Vec<u32> = Vec::with_capacity(16);
         let mut vals: Vec<u32> = Vec::with_capacity(16);
         for oy in 0..out_h {
-            // Mirror the block row index (vertical flip).
-            let sy0 = (out_h - 1 - oy) * scale;
+            let sy0 = oy * scale;
             let sy1 = (sy0 + scale).min(height);
             for ox in 0..out_w {
-                // Mirror the block column index (horizontal flip).
-                let sx0 = (out_w - 1 - ox) * scale;
+                let sx0 = ox * scale;
                 let sx1 = (sx0 + scale).min(width);
                 keys.clear();
                 vals.clear();
@@ -168,10 +163,12 @@ pub fn write_segmentation_svg<W: Write>(
                         best = k;
                     }
                 }
-                grid[oy * out_w + ox] = best;
+                g[oy * out_w + ox] = best;
             }
         }
-    }
+        owned = g;
+        &owned
+    };
 
     // Emit horizontal runs of identical colour as one <rect>.
     for oy in 0..out_h {
@@ -191,7 +188,7 @@ pub fn write_segmentation_svg<W: Write>(
                 w,
                 r##"<rect x="{}" y="{}" width="{}" height="1" fill="{}"/>"##,
                 pad + ox,
-                pad + 30 + oy,
+                pad + 30 + (out_h - 1 - oy), // vertical flip
                 run,
                 fill
             )?;
@@ -220,3 +217,4 @@ fn hsl_to_rgb(h: f64, s: f64, l: f64) -> (u8, u8, u8) {
     let to_u8 = |v: f64| ((v + m).clamp(0.0, 1.0) * 255.0).round() as u8;
     (to_u8(r1), to_u8(g1), to_u8(b1))
 }
+
