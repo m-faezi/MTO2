@@ -1,4 +1,6 @@
 # MTO2
+![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)
+[![DOI](https://img.shields.io/badge/DOI-10.33612%2Fdiss.1475192919-blue)](https://doi.org/10.33612/diss.1475192919)
 
 Max-tree based source detection and segmentation for ultra-deep astronomical images.
 
