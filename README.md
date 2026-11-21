@@ -77,10 +77,10 @@ mto2 <image.fits> [options]
 | `--hdu N`          | `0`         | FITS HDU index                               |
 | `--conn 4\|8`      | `4`         | Max-tree connectivity                        |
 | `--s-sigma F`      | `2.0`       | Gaussian smoothing sigma (`0` = no smoothing)|
-| `--alpha F`        | `1e-6`      | Significance level                           |
-| `--rejection-rate` | `0.05`      | Flat-tile rejection rate                     |
 | `--move-factor F`  | `0.0`       | Isophote refinement factor                   |
+| `--alpha F`        | `1e-6`      | Significance level                           |
 | `--area-ratio F`   | `0.90`      | Isophote area ratio                          |
+| `--rejection-rate` | `0.05`      | Flat-tile rejection rate                     |
 | `--out-dir DIR`    | timestamped | Output directory under `results/`            |
 
 ![Preview](assets/move-factor.gif)
