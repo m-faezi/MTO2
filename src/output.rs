@@ -7,7 +7,9 @@
 //!   as in the Python version where id = (n_vertices - 1 - vertex index).
 //! * `binary_mask.fits`: uint8 image, 0 = background, 1 = any segment.
 //!   Same header as `segmentation_map.fits`.
-//! * `parameters.csv`: `ID,Area,Flux,R_eff,Min,Max,X,Y,RA,Dec`, one row per segment.
+//! * `parameters.csv`: `ID,Area,Flux,R_eff,Min,Max,X,Y,RA,Dec,P_ID`, one row per segment.
+//!     P_ID   = ID of the parent segment: the nearest segment above this one in
+//!              the max-tree. 0 when the segment has no parent segment.
 //!     Area   = max-tree node area of the segment (pixels, includes nested segments),
 //!              as `area[n_map_segments]` in the Python version.
 //!     Flux   = sum of the UNSMOOTHED image over the same pixels
@@ -171,9 +173,28 @@ pub fn write_parameters_csv(
         if mx[nd] > mx[par] { mx[par] = mx[nd]; }
     }
 
+    // ---- parent segment id (0 = no parent segment) ----
+    // `anc_seg[nd]` = id (1-based) of the nearest segment node on the path
+    // from `nd` to the root, inclusive; 0 if none. `order` lists parents first.
+    let mut node_seg_id = vec![0u32; n_nodes];
+    for (i, &nd) in seg.segment_seed.iter().enumerate() {
+        node_seg_id[nd as usize] = i as u32 + 1;
+    }
+    let mut anc_seg = vec![0u32; n_nodes];
+    for &nd in &tree.order {
+        let nd = nd as usize;
+        anc_seg[nd] = if node_seg_id[nd] != 0 {
+            node_seg_id[nd]
+        } else if nd == root {
+            0
+        } else {
+            anc_seg[tree.parent_node[nd] as usize]
+        };
+    }
+
     // ---- write rows ----
     let mut wtr = BufWriter::new(File::create(path)?);
-    writeln!(wtr, "ID,Area,Flux,R_eff,Min,Max,X,Y,RA,Dec")?;
+    writeln!(wtr, "ID,Area,Flux,R_eff,Min,Max,X,Y,RA,Dec,P_ID")?;
     for (i, &nd) in seg.segment_seed.iter().enumerate() {
         let nd = nd as usize;
         let a = area[nd].max(1) as f64;
@@ -197,9 +218,12 @@ pub fn write_parameters_csv(
             None => (f64::NAN, f64::NAN),
         };
 
+        // Parent segment: nearest segment strictly above this node (0 = none).
+        let p_id = if nd == root { 0 } else { anc_seg[tree.parent_node[nd] as usize] };
+
         writeln!(
             wtr,
-            "{},{},{},{:.6},{:.6e},{:.6e},{:.6},{:.6},{:.8},{:.8}",
+            "{},{},{},{:.6},{:.6e},{:.6e},{:.6},{:.6},{:.8},{:.8},{}",
             i + 1,
             area[nd],
             flux[nd],
@@ -209,7 +233,8 @@ pub fn write_parameters_csv(
             x,
             y,
             ra,
-            dec
+            dec,
+            p_id
         )?;
     }
     wtr.flush()
@@ -411,7 +436,7 @@ mod tests {
             .unwrap();
         let text = std::fs::read_to_string(&csv).unwrap();
         let mut rows = text.lines();
-        assert_eq!(rows.next().unwrap(), "ID,Area,Flux,R_eff,Min,Max,X,Y,RA,Dec");
+        assert_eq!(rows.next().unwrap(), "ID,Area,Flux,R_eff,Min,Max,X,Y,RA,Dec,P_ID");
 
         for (i, line) in rows.enumerate() {
             let f: Vec<&str> = line.split(',').collect();
@@ -455,6 +480,28 @@ mod tests {
             assert!((f[7].parse::<f64>().unwrap() - cy).abs() < 1e-4, "Y of id {}", i + 1);
             assert!(f[8].parse::<f64>().unwrap().is_nan(), "RA should be NaN without WCS");
             assert!(f[9].parse::<f64>().unwrap().is_nan(), "Dec should be NaN without WCS");
+            // P_ID: nearest segment strictly above in the max-tree (0 = none).
+            let mut anc = tree.parent_node[nd] as usize;
+            let mut expect = 0usize;
+            if nd != tree.root() {
+                loop {
+                    if let Some(j) = seg.segment_seed.iter().position(|&s| s as usize == anc) {
+                        expect = j + 1;
+                        break;
+                    }
+                    if anc == tree.root() { break; }
+                    anc = tree.parent_node[anc] as usize;
+                }
+            }
+            let p_id = f[10].parse::<usize>().unwrap();
+            if nd == tree.root() {
+                assert_eq!(p_id, 0, "root P_ID must be 0");
+            }
+            assert_eq!(
+                p_id, expect,
+                "P_ID of id {} is {}, expected {} (0 = no strict-ancestor segment)",
+                i + 1, p_id, expect
+            );
         }
     }
 
