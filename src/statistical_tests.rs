@@ -267,8 +267,9 @@ pub fn move_up(
     // Target level of an object after the move.
     let target = |o: usize| -> f64 {
         let par = tree.parent_node[o] as usize;
+        let above_bg = (tree.level[par] as f64 - bg.mean).max(0.0);
         let noise = if bg.gain != 0.0 {
-            ((bg.var + tree.level[par] as f64) / bg.gain).max(0.0).sqrt()
+            ((bg.var + above_bg) / bg.gain).max(0.0).sqrt()
         } else {
             0.0
         };
