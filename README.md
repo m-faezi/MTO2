@@ -48,7 +48,7 @@ rustup-init -y
 ### Build
 
 ```bash
-git clone <repo-url> MTO2
+git clone https://github.com/m-faezi/MTO2 MTO2
 cd MTO2
 cargo build --release
 ```
@@ -137,7 +137,7 @@ Everything is written to `results/<out-dir or run_<timestamp>>/`:
 sudo apt install -y build-essential pkg-config libcfitsio-dev
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source "$HOME/.cargo/env"
-git clone <repo-url> MTO2 && cd MTO2
+git clone https://github.com/m-faezi/MTO2 MTO2 && cd MTO2
 cargo build --release
 ./target/release/mto2 image.fits --conn 8 --out-dir first_run
 ```
@@ -148,7 +148,7 @@ xcode-select --install
 brew install cfitsio
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source "$HOME/.cargo/env"
-git clone <repo-url> MTO2 && cd MTO2
+git clone https://github.com/m-faezi/MTO2 MTO2 && cd MTO2
 cargo build --release
 ./target/release/mto2 image.fits --conn 8 --out-dir first_run
 ```
