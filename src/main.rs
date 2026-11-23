@@ -83,8 +83,61 @@ fn gaussian_blur(img: &[f32], width: usize, height: usize, sigma: f64) -> Vec<f3
     out
 }
 
+/// Grow a boolean mask by `r` pixels in each axis (square structuring
+/// element) in O(n) using running prefix counts. Used so that background
+/// tiles stay clear of invalid pixels *and* of the area the blur smeared them
+/// into.
+fn dilate_mask(mask: &[bool], width: usize, height: usize, r: usize) -> Vec<bool> {
+    if r == 0 || !mask.iter().any(|&m| m) {
+        return mask.to_vec();
+    }
+    let mut tmp = vec![false; mask.len()];
+    let mut pre = vec![0u32; width + 1];
+    for y in 0..height {
+        for x in 0..width {
+            pre[x + 1] = pre[x] + mask[y * width + x] as u32;
+        }
+        for x in 0..width {
+            let lo = x.saturating_sub(r);
+            let hi = (x + r + 1).min(width);
+            tmp[y * width + x] = pre[hi] - pre[lo] > 0;
+        }
+    }
+    let mut out = vec![false; mask.len()];
+    let mut pre = vec![0u32; height + 1];
+    for x in 0..width {
+        for y in 0..height {
+            pre[y + 1] = pre[y] + tmp[y * width + x] as u32;
+        }
+        for y in 0..height {
+            let lo = y.saturating_sub(r);
+            let hi = (y + r + 1).min(height);
+            out[y * width + x] = pre[hi] - pre[lo] > 0;
+        }
+    }
+    out
+}
+
+fn print_stats(label: &str, img: &[f32]) {
+    let (mn, mx) = img
+        .iter()
+        .copied()
+        .fold((f32::INFINITY, f32::NEG_INFINITY), |(a, b), v| {
+            (a.min(v), b.max(v))
+        });
+    let mean = img.iter().map(|&v| v as f64).sum::<f64>() / img.len() as f64;
+    let var = img
+        .iter()
+        .map(|&v| (v as f64 - mean).powi(2))
+        .sum::<f64>()
+        / img.len() as f64;
+    println!(
+        "{label} image stats: min={mn:.3e} max={mx:.3e} mean={mean:.3e} sigma={:.3e}",
+        var.sqrt()
+    );
+}
+
 fn main() {
-    
     const USAGE: &str = "usage: mto2 <image.fits> [--hdu 0] [--conn 4|8] \
 [--s-sigma 2.0] [--alpha 1e-6] [--rejection-rate 0.05] \
 [--move-factor 0.0] [--area-ratio 0.90] [--out-dir DIR]";
@@ -211,35 +264,24 @@ fn run(
         out_base.join(name).to_string_lossy().into_owned()
     };
 
+    // Remember which pixels were invalid BEFORE they are filled, so the
+    // background estimator can keep flat tiles away from them.
+    let bad_raw: Option<Vec<bool>> = if img.iter().any(|v| !v.is_finite()) {
+        Some(img.iter().map(|v| !v.is_finite()).collect())
+    } else {
+        None
+    };
     let replaced = replace_nan(&mut img);
     if replaced > 0 {
         println!("replaced {replaced} non-finite pixels with image minimum");
     }
 
-    // Raw stats (before smoothing).
-    {
-        let (mn, mx) = img
-            .iter()
-            .copied()
-            .fold((f32::INFINITY, f32::NEG_INFINITY), |(a, b), v| {
-                (a.min(v), b.max(v))
-            });
-        let mean = img.iter().map(|&v| v as f64).sum::<f64>() / img.len() as f64;
-        let var = img
-            .iter()
-            .map(|&v| (v as f64 - mean).powi(2))
-            .sum::<f64>()
-            / img.len() as f64;
-        println!(
-            "raw image stats: min={mn:.3e} max={mx:.3e} mean={mean:.3e} sigma={:.3e}",
-            var.sqrt()
-        );
-    }
+    print_stats("raw", &img);
 
-    // Keep the unsmoothed image for the flux column of parameters.csv.
-    let raw: Option<Vec<f32>> = if s_sigma > 0.0 { Some(img.clone()) } else { None };
+    // Unsmoothed, unreduced image for the flux column of parameters.csv.
+    let raw: Vec<f32> = img.clone();
 
-    // ---- 1. s_sigma smoothing happens BEFORE tree construction ----
+    // ---- 1. s_sigma smoothing happens BEFORE background / tree ----
     if s_sigma > 0.0 {
         let t_blur = Instant::now();
         img = gaussian_blur(&img, width, height, s_sigma);
@@ -250,34 +292,76 @@ fn run(
     } else {
         println!("gaussian blur skipped (s_sigma={s_sigma:.2})");
     }
+    print_stats("smoothed", &img);
 
-    {
-        let (mn, mx) = img
-            .iter()
-            .copied()
-            .fold((f32::INFINITY, f32::NEG_INFINITY), |(a, b), v| {
-                (a.min(v), b.max(v))
-            });
-        let mean = img.iter().map(|&v| v as f64).sum::<f64>() / img.len() as f64;
-        let var = img
-            .iter()
-            .map(|&v| (v as f64 - mean).powi(2))
-            .sum::<f64>()
-            / img.len() as f64;
-        println!(
-            "smoothed image stats: min={mn:.3e} max={mx:.3e} mean={mean:.3e} sigma={:.3e}",
-            var.sqrt()
-        );
-    }
+    // Tree + all attributes in one place.
+    let build = |im: &[f32]| {
+        let t1 = Instant::now();
+        let mut tree = build_max_tree(im, width, height, conn);
+        println!("built max-tree ({conn:?}) in {:.2?}", t1.elapsed());
+        let t_attr = Instant::now();
+        compute_attributes(&mut tree, im);
+        println!("computed attributes in {:.2?}", t_attr.elapsed());
+        tree
+    };
 
-    // ---- 2. Tree + all attributes in one place ----
-    let t1 = Instant::now();
-    let mut tree = build_max_tree(&img, width, height, conn);
-    println!("built max-tree ({conn:?}) in {:.2?}", t1.elapsed());
+    // ---- 2. Constant background FIRST (matches mto2.py), then the tree ----
+    // Mask grown by the blur radius so tiles also avoid blur-smeared fill.
+    let blur_radius = if s_sigma > 0.0 { gaussian_kernel(s_sigma).len() / 2 } else { 0 };
+    let bad_mask: Option<Vec<bool>> =
+        bad_raw.map(|m| dilate_mask(&m, width, height, blur_radius));
 
-    let t_attr = Instant::now();
-    compute_attributes(&mut tree, &img);
-    println!("computed attributes in {:.2?}", t_attr.elapsed());
+    let t_bg = Instant::now();
+    let const_bg = estimate_background(
+        &img,
+        width,
+        height,
+        rejection_rate,
+        alpha,
+        bad_mask.as_deref(),
+    )
+    .filter(|b| {
+        b.mean.is_finite()
+            && b.var.is_finite()
+            && b.gain.is_finite()
+            && b.var > 0.0
+            && b.gain != 0.0
+    });
+
+    let (tree, bg) = match const_bg {
+        Some(bg) => {
+            println!(
+                "constant background estimated in {:.2?}: mean={:.3e} sigma={:.3e} gain={:.3e}",
+                t_bg.elapsed(),
+                bg.mean,
+                bg.var.sqrt(),
+                bg.gain
+            );
+            // Reduce: subtract the background so the tree is built on the
+            // reduced image (Python `smooth_reduced_image`).
+            // NOTE: if `detect` also subtracts `bg.mean` internally, set
+            // `bg.mean = 0.0` here to avoid subtracting twice.
+            let m = bg.mean as f32;
+            for v in img.iter_mut() {
+                *v -= m;
+            }
+            let tree = build(&img);
+            (tree, bg)
+        }
+        None => {
+            println!("no usable constant background; switching to morphological background");
+            // Python builds the tree on the smoothed (unreduced) image here.
+            let tree = build(&img);
+            let bg = morph_background::estimate_morphological_background(&img, &tree, alpha);
+            println!(
+                "morphological background: mean={:.3e} sigma={:.3e} gain={:.3e}",
+                bg.mean,
+                bg.var.sqrt(),
+                bg.gain
+            );
+            (tree, bg)
+        }
+    };
 
     let s = tree.stats();
     let root = tree.root();
@@ -300,33 +384,6 @@ fn run(
         tree.root_pixel(),
         tree.level[root]
     );
-
-    // ---- 3. Background estimation from the (smoothed) image ----
-    let t_bg = Instant::now();
-    let mut bg = estimate_background(&img, width, height, rejection_rate, alpha);
-    println!(
-        "background estimated in {:.2?}: mean={:.3e} sigma={:.3e} gain={:.3e}",
-        t_bg.elapsed(),
-        bg.mean,
-        bg.var.sqrt(),
-        bg.gain
-    );
-
-    if !bg.mean.is_finite()
-        || !bg.var.is_finite()
-        || !bg.gain.is_finite()
-        || bg.var <= 0.0
-        || bg.gain == 0.0
-    {
-        println!("switched from constant to morphological background");
-        bg = morph_background::estimate_morphological_background(&img, &tree, alpha);
-        println!(
-            "morphological background: mean={:.3e} sigma={:.3e} gain={:.3e}",
-            bg.mean,
-            bg.var.sqrt(),
-            bg.gain
-        );
-    }
 
     // Attributes are already on the tree — just borrow them.
     let area: &[u32] = &tree.area;
@@ -429,15 +486,7 @@ fn run(
     println!("wrote {mask_fits}");
 
     let csv_path = out("parameters.csv".into());
-    output::write_parameters_csv(
-        &tree,
-        area,
-        &seg,
-        raw.as_deref().unwrap_or(&img),
-        path,
-        hdu_index,
-        &csv_path,
-    )?;
+    output::write_parameters_csv(&tree, area, &seg, &raw, path, hdu_index, &csv_path)?;
     println!("wrote {csv_path} ({} segments)", seg.segment_seed.len());
 
     Ok(())
@@ -503,5 +552,28 @@ mod tests {
         assert!(out[17] > 0.0);
         let sum: f32 = out.iter().sum();
         assert!((sum - 100.0).abs() < 1.0, "sum={sum}");
+    }
+
+    #[test]
+    fn dilate_mask_grows_by_radius() {
+        let (w, h) = (9usize, 9usize);
+        let mut m = vec![false; w * h];
+        m[4 * w + 4] = true;
+        let d = dilate_mask(&m, w, h, 2);
+        for y in 0..h {
+            for x in 0..w {
+                let inside = (2..=6).contains(&x) && (2..=6).contains(&y);
+                assert_eq!(d[y * w + x], inside, "x={x} y={y}");
+            }
+        }
+    }
+
+    #[test]
+    fn dilate_mask_noop_when_empty_or_r0() {
+        let m = vec![false; 16];
+        assert_eq!(dilate_mask(&m, 4, 4, 3), m);
+        let mut m2 = vec![false; 16];
+        m2[5] = true;
+        assert_eq!(dilate_mask(&m2, 4, 4, 0), m2);
     }
 }

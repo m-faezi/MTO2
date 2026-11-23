@@ -2,77 +2,34 @@
 //!
 //! Estimates the mean, variance and gain of the flat background directly from
 //! the image by locating square "flat" tiles whose pixel distribution passes a
-//! normality test and whose halves have equal means, then pooling those tiles.
+//! D'Agostino-Pearson normality test and whose halves have equal means, then
+//! pooling those tiles.
 //!
-//! This is a faithful port of the deterministic Python estimator
-//! (`estimate_background` + `largest_flat_tile` in `const_background.py`), not
-//! the randomized `estimate_background_fast`. Two deviations from the Python
-//! reference are intentional and documented at their call sites:
+//! Faithful port of the deterministic Python estimator (`estimate_background`
+//! + `largest_flat_tile`), with these deliberate differences:
 //!
-//!   * `find_flat_tile_size` returns the size that *worked* when shrinking
-//!     (the Python `largest_flat_tile` returns `min_size` there, which can be a
-//!     stale/incorrect tile size and lead to a spurious global fallback).
-//!   * Tiles are pooled with a single streaming pass; no intermediate vectors
-//!     are allocated in the hot loop.
+//!   * The kurtosis test uses the NON-excess kurtosis `m4/m2^2`, exactly like
+//!     `scipy.stats.kurtosistest`. (The previous version subtracted 3 twice,
+//!     which pushed the statistic to NaN and silently accepted nearly every
+//!     tile.) Degenerate statistics now REJECT the tile instead of accepting.
+//!   * Constant (zero-variance) tiles are rejected; they are not background
+//!     (typically NaN-filled or saturated regions).
+//!   * An optional `bad_mask` excludes tiles that touch invalid pixels.
+//!   * `find_flat_tile_size` returns the size that actually worked when
+//!     shrinking (Python returns `min_size`).
+//!   * Failure returns `None` (Python raises) so the caller can switch to the
+//!     morphological background, as `mto2.py` does.
+//!   * Tiles are analysed with no heap allocation: two passes over the image
+//!     rows, central moments and per-half sums, pooled with Chan's algorithm.
 
 use crate::statistical_tests::Background;
 
-// ---------------------------------------------------------------------------
-// Special functions (Lanczos ln Γ, incomplete gamma, incomplete beta)
-// ---------------------------------------------------------------------------
+/// scipy's kurtosis test needs n >= 20 to be meaningful.
+const MIN_TILE_PIXELS: usize = 20;
 
-/// Regularized upper incomplete gamma function Q(a, x).
-#[cfg(test)]
-fn gamma_q(a: f64, x: f64) -> f64 {
-    if x < 0.0 || a <= 0.0 {
-        return f64::NAN;
-    }
-    if x == 0.0 {
-        return 1.0;
-    }
-    let gln = ln_gamma(a);
-    if x < a + 1.0 {
-        // Series representation for P(a, x); Q = 1 - P.
-        let mut ap = a;
-        let mut sum = 1.0 / a;
-        let mut del = sum;
-        for _ in 0..1000 {
-            ap += 1.0;
-            del *= x / ap;
-            sum += del;
-            if del.abs() < sum.abs() * 1e-15 {
-                break;
-            }
-        }
-        1.0 - sum * (-x + a * x.ln() - gln).exp()
-    } else {
-        // Continued fraction for Q(a, x).
-        const FPMIN: f64 = 1e-300;
-        let mut b = x + 1.0 - a;
-        let mut c = 1.0 / FPMIN;
-        let mut d = 1.0 / b;
-        let mut h = d;
-        for i in 1..1000 {
-            let an = -(i as f64) * (i as f64 - a);
-            b += 2.0;
-            d = an * d + b;
-            if d.abs() < FPMIN {
-                d = FPMIN;
-            }
-            c = b + an / c;
-            if c.abs() < FPMIN {
-                c = FPMIN;
-            }
-            d = 1.0 / d;
-            let del = d * c;
-            h *= del;
-            if (del - 1.0).abs() < 1e-15 {
-                break;
-            }
-        }
-        (-x + a * x.ln() - gln).exp() * h
-    }
-}
+// ---------------------------------------------------------------------------
+// Special functions (Lanczos ln Γ, regularized incomplete beta)
+// ---------------------------------------------------------------------------
 
 /// Lanczos approximation of ln Γ(x) (g = 7, n = 9).
 fn ln_gamma(x: f64) -> f64 {
@@ -89,7 +46,6 @@ fn ln_gamma(x: f64) -> f64 {
         1.5056327351493116e-7,
     ];
     if x < 0.5 {
-        // Reflection formula.
         let pi = std::f64::consts::PI;
         return (pi / (pi * x).sin()).ln() - ln_gamma(1.0 - x);
     }
@@ -133,7 +89,7 @@ fn betacf(a: f64, b: f64, x: f64) -> f64 {
     }
     d = 1.0 / d;
     let mut h = d;
-    for m in 1..200 {
+    for m in 1..500 {
         let m = m as f64;
         let m2 = 2.0 * m;
         let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
@@ -170,434 +126,285 @@ fn betacf(a: f64, b: f64, x: f64) -> f64 {
 // Statistical tests
 // ---------------------------------------------------------------------------
 
-/// Two-sided p-value of the D'Agostino–Pearson normality test.
+/// D'Agostino-Pearson K² statistic from central moments (population moments:
+/// `m2 = Σd²/n`, etc.). Mirrors `scipy.stats.skewtest` + `kurtosistest`.
 ///
-/// Equivalent to `scipy.stats.normaltest` for a 1-D sample.
-///
-/// Returns 1.0 ("cannot reject normality") in these guard cases:
-///   * `n < 8`: scipy raises for such samples; we are permissive.
-///   * `8 <= n < 20`: the D'Agostino–Pearson statistic is known to be poorly
-///     conditioned here and can produce `NaN` through `sqrtbeta1` and the
-///     kurtosis transform. We conservatively accept the sample rather than
-///     risk a `NaN < p` comparison (which is `false` and would silently pass).
-///   * any non-finite intermediate moment.
-fn normaltest_pvalue(sample: &[f64]) -> f64 {
-    let n = sample.len();
-    if n < 8 {
-        return 1.0;
-    }
-    let nf = n as f64;
-    let mean = sample.iter().sum::<f64>() / nf;
-    let mut m2 = 0.0;
-    let mut m3 = 0.0;
-    let mut m4 = 0.0;
-    for &v in sample {
-        let d = v - mean;
-        let d2 = d * d;
-        m2 += d2;
-        m3 += d2 * d;
-        m4 += d2 * d2;
-    }
-    let m2 = m2 / nf;
-    let m3 = m3 / nf;
-    let m4 = m4 / nf;
-    if m2 <= 0.0 || !m2.is_finite() || !m3.is_finite() || !m4.is_finite() {
-        return 1.0;
-    }
-    if n < 20 {
-        // See doc comment: D'Agostino–Pearson is unreliable for small n.
-        return 1.0;
+/// Returns `None` for degenerate input (n too small, zero variance, any
+/// non-finite intermediate). Callers treat `None` as "reject the tile".
+fn dagostino_k2(n: f64, m2: f64, m3: f64, m4: f64) -> Option<f64> {
+    if n < MIN_TILE_PIXELS as f64
+        || !(m2 > 0.0)
+        || !m2.is_finite()
+        || !m3.is_finite()
+        || !m4.is_finite()
+    {
+        return None;
     }
     let skew = m3 / m2.powf(1.5);
-    let kurt = m4 / (m2 * m2) - 3.0; // excess kurtosis
+    let b2 = m4 / (m2 * m2); // NON-excess kurtosis (scipy: fisher=False)
 
     // Skewness test (D'Agostino 1970).
-    let y = skew * ((nf + 1.0) * (nf + 3.0) / (6.0 * (nf - 2.0))).sqrt();
-    let beta2 = 3.0 * (nf * nf + 27.0 * nf - 70.0) * (nf + 1.0) * (nf + 3.0)
-        / ((nf - 2.0) * (nf + 5.0) * (nf + 7.0) * (nf + 9.0));
-    let w2_arg = 2.0 * (beta2 - 1.0);
-    if w2_arg < 0.0 || !w2_arg.is_finite() {
-        return 1.0;
-    }
-    let w2 = -1.0 + w2_arg.sqrt();
-    if w2 <= 0.0 || !w2.is_finite() {
-        return 1.0;
-    }
+    let y = skew * ((n + 1.0) * (n + 3.0) / (6.0 * (n - 2.0))).sqrt();
+    let beta2 = 3.0 * (n * n + 27.0 * n - 70.0) * (n + 1.0) * (n + 3.0)
+        / ((n - 2.0) * (n + 5.0) * (n + 7.0) * (n + 9.0));
+    let w2 = -1.0 + (2.0 * (beta2 - 1.0)).sqrt();
     let delta = 1.0 / (0.5 * w2.ln()).sqrt();
     let alpha = (2.0 / (w2 - 1.0)).sqrt();
-    if !delta.is_finite() || !alpha.is_finite() {
-        return 1.0;
-    }
-    let ya = y / alpha;
-    let z1 = if ya > 0.0 {
-        delta * (ya + (ya * ya + 1.0).sqrt()).ln()
-    } else {
-        -delta * (-ya + (ya * ya + 1.0).sqrt()).ln()
-    };
+    let z1 = delta * (y / alpha).asinh();
 
     // Kurtosis test (Anscombe & Glynn 1983).
-    let e = 3.0 * (nf - 1.0) / (nf + 1.0);
-    let varb2 = 24.0 * nf * (nf - 2.0) * (nf - 3.0)
-        / ((nf + 1.0) * (nf + 1.0) * (nf + 3.0) * (nf + 5.0));
-    if varb2 <= 0.0 || !varb2.is_finite() {
-        return 1.0;
-    }
-    let x = (kurt - e) / varb2.sqrt();
-    let sqrtbeta1 = 6.0 * (nf * nf - 5.0 * nf + 2.0) / ((nf + 7.0) * (nf + 9.0))
-        * (6.0 * (nf + 3.0) * (nf + 5.0) / (nf * (nf - 2.0) * (nf - 3.0))).sqrt();
-    if sqrtbeta1 == 0.0 || !sqrtbeta1.is_finite() {
-        return 1.0;
-    }
+    let e = 3.0 * (n - 1.0) / (n + 1.0);
+    let varb2 =
+        24.0 * n * (n - 2.0) * (n - 3.0) / ((n + 1.0) * (n + 1.0) * (n + 3.0) * (n + 5.0));
+    let x = (b2 - e) / varb2.sqrt();
+    let sqrtbeta1 = 6.0 * (n * n - 5.0 * n + 2.0) / ((n + 7.0) * (n + 9.0))
+        * (6.0 * (n + 3.0) * (n + 5.0) / (n * (n - 2.0) * (n - 3.0))).sqrt();
     let a = 6.0 + 8.0 / sqrtbeta1 * (2.0 / sqrtbeta1 + (1.0 + 4.0 / (sqrtbeta1 * sqrtbeta1)).sqrt());
-    if a <= 4.0 || !a.is_finite() {
-        // `2.0 / (a - 4.0)` would be ≤ 0 or non-finite below this guard.
-        return 1.0;
-    }
     let term1 = 1.0 - 2.0 / (9.0 * a);
-    let term2 = ((1.0 - 2.0 / a) / (1.0 + x * (2.0 / (a - 4.0)).sqrt())).powf(1.0 / 3.0);
-    let z2 = (term1 - term2) / (2.0 / (9.0 * a)).sqrt();
-    if !z1.is_finite() || !z2.is_finite() {
-        return 1.0;
+    let denom = 1.0 + x * (2.0 / (a - 4.0)).sqrt();
+    if denom == 0.0 {
+        return None;
     }
+    // scipy: sign(denom) * (|(1 - 2/A) / denom|)^(1/3)
+    let term2 = denom.signum() * ((1.0 - 2.0 / a) / denom.abs()).powf(1.0 / 3.0);
+    let z2 = (term1 - term2) / (2.0 / (9.0 * a)).sqrt();
 
     let k2 = z1 * z1 + z2 * z2;
-    // p-value of chi-square with 2 df: exp(-k2 / 2).
-    (-k2 / 2.0).exp()
+    k2.is_finite().then_some(k2)
 }
 
-/// Two-sided p-value of Student's t-test for two independent samples with
-/// pooled variance.
-///
-/// This matches `scipy.stats.ttest_ind(a, b)` with its default
-/// `equal_var=True`. The Python reference calls `ttest_ind` without
-/// overriding `equal_var`, so Student's t is the correct analogue.
-fn ttest_ind_pvalue(a: &[f64], b: &[f64]) -> f64 {
-    let (na, nb) = (a.len() as f64, b.len() as f64);
+/// Two-sided Student-t p-value (pooled variance, like `scipy.stats.ttest_ind`)
+/// from per-group `[n, Σd, Σd²]`, where `d` is shifted by a COMMON constant.
+fn ttest_pvalue(a: [f64; 3], b: [f64; 3]) -> f64 {
+    let (na, nb) = (a[0], b[0]);
     if na < 2.0 || nb < 2.0 {
         return 1.0;
     }
-    let ma = a.iter().sum::<f64>() / na;
-    let mb = b.iter().sum::<f64>() / nb;
-    let m2a = a.iter().map(|&v| (v - ma) * (v - ma)).sum::<f64>();
-    let m2b = b.iter().map(|&v| (v - mb) * (v - mb)).sum::<f64>();
-    let sp2 = (m2a + m2b) / (na + nb - 2.0);
-    let se2 = sp2 * (1.0 / na + 1.0 / nb);
-    if se2 <= 0.0 || !se2.is_finite() {
-        return 1.0;
+    let (ma, mb) = (a[1] / na, b[1] / nb);
+    let ssa = (a[2] - a[1] * a[1] / na).max(0.0);
+    let ssb = (b[2] - b[1] * b[1] / nb).max(0.0);
+    let df = na + nb - 2.0;
+    let se2 = (ssa + ssb) / df * (1.0 / na + 1.0 / nb);
+    if !(se2 > 0.0) || !se2.is_finite() {
+        return if ma == mb { 1.0 } else { 0.0 };
     }
     let t = (ma - mb) / se2.sqrt();
-    if !t.is_finite() {
-        return 1.0;
-    }
-    let df = na + nb - 2.0;
-    // Student-t survival: 2 * (1 - CDF_t(df, |t|)) = I_{df/(df+t^2)}(df/2, 1/2).
-    let x = df / (df + t * t);
-    let p = betainc(df / 2.0, 0.5, x).min(1.0);
-    p
+    // Two-sided p = I_{df/(df+t²)}(df/2, 1/2).
+    betainc(df / 2.0, 0.5, df / (df + t * t)).min(1.0)
 }
 
 // ---------------------------------------------------------------------------
 // Flat-tile detection
 // ---------------------------------------------------------------------------
 
-/// Reusable scratch buffers so the hot loop performs no heap allocation.
-#[derive(Default)]
-struct Scratch {
-    finite: Vec<f64>,
-    top: Vec<f64>,
-    bot: Vec<f64>,
-    left: Vec<f64>,
-    right: Vec<f64>,
+/// Summary of an accepted tile (mean and sum of squared deviations).
+#[derive(Clone, Copy)]
+struct TileStats {
+    n: u64,
+    mean: f64,
+    m2: f64,
 }
 
-impl Scratch {
-    #[cfg(test)]
-    fn new() -> Self {
-        Self::default()
-    }
-
-    fn with_capacity(tile_len: usize) -> Self {
-        let n = tile_len * tile_len;
-        let h = (tile_len / 2) * tile_len;
-        let h2 = tile_len * (tile_len - tile_len / 2);
-        Self {
-            finite: Vec::with_capacity(n),
-            top: Vec::with_capacity(h),
-            bot: Vec::with_capacity(h2),
-            left: Vec::with_capacity(h),
-            right: Vec::with_capacity(h2),
-        }
-    }
-
-    fn clear(&mut self) {
-        self.finite.clear();
-        self.top.clear();
-        self.bot.clear();
-        self.left.clear();
-        self.right.clear();
-    }
-}
-
-/// The flat-tile acceptance test: normal distribution + equal half-means.
-///
-/// Matches the Python `check_tile_is_flat` semantics:
-///   * reject all-zero tiles or tiles with no finite pixels;
-///   * reject if `normaltest` p-value < `r1` (Python `rejection_rate_1`);
-///   * reject if either top-vs-bottom or left-vs-right `ttest_ind` p-value
-///     < `r2` (Python `rejection_rate_2`).
-///
-/// NaN pixels are dropped per-test, equivalent to scipy's `nan_policy='omit'`.
-fn check_tile_is_flat(
-    tile: &[f32],
-    tile_len: usize,
-    r1: f64,
-    r2: f64,
-    scratch: &mut Scratch,
-) -> bool {
-    debug_assert_eq!(tile.len(), tile_len * tile_len);
-    scratch.clear();
-
-    let mut all_zero = true;
-    let mut any_finite = false;
-    let h = tile_len / 2;
-
-    // Single pass: collect per-half samples for the t-tests and the finite
-    // values for the normality test.
-    for y in 0..tile_len {
-        for x in 0..tile_len {
-            let v = tile[y * tile_len + x];
-            if !v.is_finite() {
-                continue;
-            }
-            any_finite = true;
-            let v = v as f64;
-            if v != 0.0 {
-                all_zero = false;
-            }
-            scratch.finite.push(v);
-            if y < h {
-                scratch.top.push(v);
-            } else {
-                scratch.bot.push(v);
-            }
-            if x < h {
-                scratch.left.push(v);
-            } else {
-                scratch.right.push(v);
-            }
-        }
-    }
-    if !any_finite || all_zero {
-        return false;
-    }
-
-    if normaltest_pvalue(&scratch.finite) < r1 {
-        return false;
-    }
-    if ttest_ind_pvalue(&scratch.top, &scratch.bot) < r2 {
-        return false;
-    }
-    if ttest_ind_pvalue(&scratch.left, &scratch.right) < r2 {
-        return false;
-    }
-    true
-}
-
-/// Copy the `tile_len` x `tile_len` block at `(x0, y0)` into `tile`.
-#[inline]
-fn read_tile(
-    img: &[f32],
-    width: usize,
-    x0: usize,
-    y0: usize,
-    tile_len: usize,
-    tile: &mut [f32],
-) {
-    for ty in 0..tile_len {
-        let src = (y0 + ty) * width + x0;
-        tile[ty * tile_len..(ty + 1) * tile_len].copy_from_slice(&img[src..src + tile_len]);
-    }
-}
-
-/// Returns `true` if any tile of size `tile_len` passes `check_tile_is_flat`.
-fn available_tiles(
-    img: &[f32],
+struct Ctx<'a> {
+    img: &'a [f32],
     width: usize,
     height: usize,
-    tile_len: usize,
+    /// `true` = pixel invalid; any tile touching one is rejected.
+    bad: Option<&'a [bool]>,
     r1: f64,
     r2: f64,
-    tile: &mut [f32],
-    scratch: &mut Scratch,
-) -> bool {
-    let mut y = 0;
-    while y + tile_len <= height {
-        let mut x = 0;
-        while x + tile_len <= width {
-            read_tile(img, width, x, y, tile_len, tile);
-            if check_tile_is_flat(tile, tile_len, r1, r2, scratch) {
-                return true;
-            }
-            x += tile_len;
-        }
-        y += tile_len;
-    }
-    false
 }
 
-/// Collect all flat tile positions of size `tile_len`.
-fn collect_flat_tiles(
-    img: &[f32],
-    width: usize,
-    height: usize,
-    tile_len: usize,
-    r1: f64,
-    r2: f64,
-    tile: &mut [f32],
-    scratch: &mut Scratch,
-) -> Vec<(usize, usize)> {
-    let mut out = Vec::new();
-    let mut y = 0;
-    while y + tile_len <= height {
-        let mut x = 0;
-        while x + tile_len <= width {
-            read_tile(img, width, x, y, tile_len, tile);
-            if check_tile_is_flat(tile, tile_len, r1, r2, scratch) {
-                out.push((x, y));
+impl Ctx<'_> {
+    /// Flat-tile test. Returns the tile summary if the tile is accepted.
+    ///
+    /// Semantics follow Python `check_tile_is_flat`:
+    ///   * reject all-zero tiles / tiles without finite pixels;
+    ///   * reject if normaltest p < r1;
+    ///   * reject if top/bottom or left/right t-test p < r2.
+    /// Non-finite pixels are omitted (`nan_policy='omit'`).
+    fn analyze_tile(&self, x0: usize, y0: usize, len: usize) -> Option<TileStats> {
+        let w = self.width;
+
+        // Pass 1: count, sum, validity.
+        let mut n = 0usize;
+        let mut sum = 0.0f64;
+        let mut nonzero = false;
+        for y in y0..y0 + len {
+            let row = y * w + x0;
+            if let Some(b) = self.bad {
+                if b[row..row + len].iter().any(|&m| m) {
+                    return None;
+                }
             }
-            x += tile_len;
+            for &v in &self.img[row..row + len] {
+                if v.is_finite() {
+                    n += 1;
+                    sum += v as f64;
+                    nonzero |= v != 0.0;
+                }
+            }
         }
-        y += tile_len;
+        if n < MIN_TILE_PIXELS || !nonzero {
+            return None;
+        }
+        let nf = n as f64;
+        let mean = sum / nf;
+
+        // Pass 2: central moments + per-half sums [n, Σd, Σd²].
+        // Index: 0 = top, 1 = bottom, 2 = left, 3 = right.
+        let h = len / 2;
+        let (mut m2, mut m3, mut m4) = (0.0f64, 0.0f64, 0.0f64);
+        let mut hs = [[0.0f64; 3]; 4];
+        for ty in 0..len {
+            let row = (y0 + ty) * w + x0;
+            let r = if ty < h { 0 } else { 1 };
+            for (tx, &v) in self.img[row..row + len].iter().enumerate() {
+                if !v.is_finite() {
+                    continue;
+                }
+                let d = v as f64 - mean;
+                let d2 = d * d;
+                m2 += d2;
+                m3 += d2 * d;
+                m4 += d2 * d2;
+                let c = if tx < h { 2 } else { 3 };
+                hs[r][0] += 1.0;
+                hs[r][1] += d;
+                hs[r][2] += d2;
+                hs[c][0] += 1.0;
+                hs[c][1] += d;
+                hs[c][2] += d2;
+            }
+        }
+
+        let k2 = dagostino_k2(nf, m2 / nf, m3 / nf, m4 / nf)?;
+        if (-0.5 * k2).exp() < self.r1 {
+            return None; // chi-square(2) survival is exp(-k2/2)
+        }
+        if ttest_pvalue(hs[0], hs[1]) < self.r2 || ttest_pvalue(hs[2], hs[3]) < self.r2 {
+            return None;
+        }
+        Some(TileStats { n: n as u64, mean, m2 })
     }
-    out
-}
 
-/// Find the largest usable flat-tile size, searching powers of two.
-///
-/// Starts at `2^size_start` and doubles up to `2^size_max` if that size has
-/// any flat tile; otherwise halves down to `2^size_min`.
-///
-/// Unlike the Python `largest_flat_tile`, when shrinking we return the size
-/// that actually passed (`current`), not the floor `min_size`. The Python
-/// function returns `min_size` there, which can disagree with the tile size
-/// that satisfied the test and cause `collect_flat_tiles` at that wrong size
-/// to find nothing, silently falling back to a global estimate.
-///
-/// Returns 0 when no flat tile exists at any tried size.
-fn find_flat_tile_size(
-    img: &[f32],
-    width: usize,
-    height: usize,
-    r1: f64,
-    r2: f64,
-    size_start: u32,
-    size_min: u32,
-    size_max: u32,
-) -> usize {
-    let start = 1usize << size_start;
-    let min_size = 1usize << size_min;
-    let max_size = 1usize << size_max;
-
-    let mut tile = vec![0.0f32; start * start];
-    let mut scratch = Scratch::with_capacity(start);
-
-    // Grow while tiles exist at the current (larger) size.
-    if available_tiles(img, width, height, start, r1, r2, &mut tile, &mut scratch) {
-        let mut current = start;
-        while current < max_size {
-            let next = current * 2;
-            if next * next > tile.len() {
-                tile.resize(next * next, 0.0);
-                scratch = Scratch::with_capacity(next);
-            }
-            if available_tiles(img, width, height, next, r1, r2, &mut tile, &mut scratch) {
-                current = next;
-            } else {
-                break;
-            }
+    /// Visit accepted tiles on the non-overlapping grid; `f` returns `true`
+    /// to stop early.
+    fn for_each_flat_tile(&self, len: usize, mut f: impl FnMut(TileStats) -> bool) {
+        if len == 0 {
+            return;
         }
-        return current;
+        let mut y = 0;
+        while y + len <= self.height {
+            let mut x = 0;
+            while x + len <= self.width {
+                if let Some(t) = self.analyze_tile(x, y, len) {
+                    if f(t) {
+                        return;
+                    }
+                }
+                x += len;
+            }
+            y += len;
+        }
     }
 
-    // Shrink until tiles exist, returning the size that worked.
-    let mut current = start;
-    while current > min_size {
-        current /= 2;
-        if current * current > tile.len() {
-            tile.resize(current * current, 0.0);
-            scratch = Scratch::with_capacity(current);
-        }
-        if available_tiles(img, width, height, current, r1, r2, &mut tile, &mut scratch) {
+    fn any_flat(&self, len: usize) -> bool {
+        let mut found = false;
+        self.for_each_flat_tile(len, |_| {
+            found = true;
+            true
+        });
+        found
+    }
+
+    /// Largest usable flat-tile size among powers of two.
+    ///
+    /// Starts at `2^size_start`; if a flat tile exists, doubles up to
+    /// `2^size_max`, otherwise halves down to `2^size_min`. When shrinking,
+    /// returns the size that worked. Returns 0 if nothing works.
+    fn find_flat_tile_size(&self, size_start: u32, size_min: u32, size_max: u32) -> usize {
+        let start = 1usize << size_start;
+        let min_size = 1usize << size_min;
+        let max_size = 1usize << size_max;
+
+        if self.any_flat(start) {
+            let mut current = start;
+            while current < max_size && self.any_flat(current * 2) {
+                current *= 2;
+            }
             return current;
         }
+        let mut current = start;
+        while current > min_size {
+            current /= 2;
+            if self.any_flat(current) {
+                return current;
+            }
+        }
+        0
     }
-    0
 }
 
 // ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
 
-/// Estimate background statistics from the image itself, using the flat-tile
-/// approach from `const_background.py::estimate_background`.
+/// Estimate background statistics with the flat-tile method of
+/// `const_background.py::estimate_background`.
 ///
-/// On success returns a `Background` whose `alpha` is set to `alpha`.
-/// If no flat tiles are found, falls back to `global_background`.
+/// `bad_mask` (same length as `img`, `true` = invalid) excludes any tile that
+/// touches an invalid pixel. Returns `None` if no flat tiles exist, so the
+/// caller can fall back to the morphological background.
 pub fn estimate_background(
     img: &[f32],
     width: usize,
     height: usize,
     rejection_rate: f64,
     alpha: f64,
-) -> Background {
-    let r1 = 1.0 - (1.0 - rejection_rate).powf(0.5);
-    let r2 = 1.0 - (1.0 - rejection_rate).powf(0.25);
+    bad_mask: Option<&[bool]>,
+) -> Option<Background> {
+    assert_eq!(img.len(), width * height, "image size mismatch");
+    if let Some(m) = bad_mask {
+        assert_eq!(m.len(), img.len(), "mask size mismatch");
+    }
 
-    let tile_len = find_flat_tile_size(img, width, height, r1, r2, 6, 4, 7);
+    let ctx = Ctx {
+        img,
+        width,
+        height,
+        bad: bad_mask,
+        r1: 1.0 - (1.0 - rejection_rate).powf(0.5),
+        r2: 1.0 - (1.0 - rejection_rate).powf(0.25),
+    };
+
+    let tile_len = ctx.find_flat_tile_size(6, 4, 7);
     if tile_len == 0 {
-        return global_background(img, alpha);
+        return None;
     }
 
-    let mut tile = vec![0.0f32; tile_len * tile_len];
-    let mut scratch = Scratch::with_capacity(tile_len);
-    let tiles = collect_flat_tiles(
-        img, width, height, tile_len, r1, r2, &mut tile, &mut scratch,
-    );
-    if tiles.is_empty() {
-        return global_background(img, alpha);
+    // Pool accepted tiles with Chan's parallel update (stable mean / M2).
+    let (mut n, mut mean, mut m2) = (0.0f64, 0.0f64, 0.0f64);
+    ctx.for_each_flat_tile(tile_len, |t| {
+        let nb = t.n as f64;
+        let tot = n + nb;
+        let delta = t.mean - mean;
+        mean += delta * nb / tot;
+        m2 += t.m2 + delta * delta * n * nb / tot;
+        n = tot;
+        false
+    });
+    if n == 0.0 {
+        return None;
     }
+    let var = m2 / n; // population variance, like np.nanvar
 
-    // Streaming pooling over the accepted tiles.
-    let mut count = 0u64;
-    let mut sum = 0.0f64;
-    let mut sum_sq = 0.0f64;
-    for &(x0, y0) in &tiles {
-        for ty in 0..tile_len {
-            let row = (y0 + ty) * width;
-            for tx in 0..tile_len {
-                let v = img[row + x0 + tx];
-                if v.is_finite() {
-                    let v = v as f64;
-                    sum += v;
-                    sum_sq += v * v;
-                    count += 1;
-                }
-            }
-        }
-    }
-    if count == 0 {
-        return global_background(img, alpha);
-    }
-    let n = count as f64;
-    let mean = sum / n;
-    let var = (sum_sq / n - mean * mean).max(0.0);
-
-    // `soft_bias` in the Python reference is `min(nanmin(img), 0)`.
+    // soft_bias = nanmin(img) if negative else 0.
     let image_min = img
         .iter()
         .copied()
         .filter(|v| v.is_finite())
-        .fold(f64::INFINITY, |a, b| a.min(b as f64));
+        .fold(f32::INFINITY, f32::min) as f64;
     let soft_bias = if image_min.is_finite() && image_min < 0.0 {
         image_min
     } else {
@@ -605,202 +412,187 @@ pub fn estimate_background(
     };
     let gain = if var != 0.0 { (mean - soft_bias) / var } else { 0.0 };
 
-    Background {
-        mean,
-        var,
-        gain,
-        alpha,
-    }
-}
-
-/// Robust global fallback using the median and MAD-derived sigma.
-fn global_background(img: &[f32], alpha: f64) -> Background {
-    let mut vals: Vec<f64> = img
-        .iter()
-        .filter(|v| v.is_finite())
-        .map(|&v| v as f64)
-        .collect();
-    if vals.is_empty() {
-        return Background {
-            mean: 0.0,
-            var: 1.0,
-            gain: 1.0,
-            alpha,
-        };
-    }
-    vals.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    let n = vals.len();
-    let median = if n % 2 == 1 {
-        vals[n / 2]
-    } else {
-        0.5 * (vals[n / 2 - 1] + vals[n / 2])
-    };
-    let mut dev: Vec<f64> = vals.iter().map(|&v| (v - median).abs()).collect();
-    dev.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    let mad = if n % 2 == 1 {
-        dev[n / 2]
-    } else {
-        0.5 * (dev[n / 2 - 1] + dev[n / 2])
-    };
-    // 1.4826 makes MAD a consistent estimator of sigma for normal data.
-    let sigma = 1.4826 * mad;
-    let var = if sigma > 0.0 { sigma * sigma } else { 1.0 };
-    let image_min = vals[0];
-    let soft_bias = image_min.min(0.0);
-    let gain = if var != 0.0 {
-        (median - soft_bias) / var
-    } else {
-        1.0
-    };
-    Background {
-        mean: median,
-        var,
-        gain,
-        alpha,
-    }
+    Some(Background { mean, var, gain, alpha })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn gamma_q_sanity() {
-        assert!((gamma_q(1.0, 1.0) - (-1.0f64).exp()).abs() < 1e-9);
-        assert!((gamma_q(1.0, 0.0) - 1.0).abs() < 1e-12);
+    struct Lcg(u64);
+    impl Lcg {
+        fn uniform(&mut self) -> f64 {
+            self.0 = self
+                .0
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            ((self.0 >> 11) as f64 + 0.5) / (1u64 << 53) as f64
+        }
+        fn gauss(&mut self) -> f64 {
+            let (u1, u2) = (self.uniform(), self.uniform());
+            (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos()
+        }
+    }
+
+    fn k2_of(s: &[f64]) -> Option<f64> {
+        let n = s.len() as f64;
+        let mean = s.iter().sum::<f64>() / n;
+        let (mut m2, mut m3, mut m4) = (0.0, 0.0, 0.0);
+        for &v in s {
+            let d = v - mean;
+            m2 += d * d;
+            m3 += d * d * d;
+            m4 += d * d * d * d;
+        }
+        dagostino_k2(n, m2 / n, m3 / n, m4 / n)
+    }
+
+    fn acc(v: &[f64]) -> [f64; 3] {
+        [
+            v.len() as f64,
+            v.iter().sum(),
+            v.iter().map(|x| x * x).sum(),
+        ]
+    }
+
+    fn noise_image(w: usize, h: usize, mean: f64, sigma: f64, seed: u64) -> Vec<f32> {
+        let mut g = Lcg(seed);
+        (0..w * h).map(|_| (mean + sigma * g.gauss()) as f32).collect()
     }
 
     #[test]
-    fn normaltest_uniform_is_not_normal() {
-        let unif: Vec<f64> = (0..200).map(|i| i as f64).collect();
-        assert!(normaltest_pvalue(&unif) < 0.01);
+    fn gaussian_k2_is_finite_and_small() {
+        // Regression: the old excess-kurtosis bug made z2 NaN (silently accepted).
+        let mut g = Lcg(1);
+        let s: Vec<f64> = (0..4096).map(|_| g.gauss()).collect();
+        let k2 = k2_of(&s).expect("k2 must be finite for Gaussian data");
+        assert!(k2 < 25.0, "k2={k2}");
+        assert!((-0.5 * k2).exp() > 1e-5);
     }
 
     #[test]
-    fn normaltest_normal_is_normal() {
-        let data: Vec<f64> = vec![
-            -1.5, -1.2, -1.0, -0.8, -0.6, -0.4, -0.2, -0.1, 0.0, 0.1, 0.2, 0.4, 0.6, 0.8,
-            1.0, 1.2, 1.5, -0.9, -0.7, -0.3, 0.3, 0.5, 0.7, 0.9, -1.4, -0.5, 0.5, 1.4,
-            -1.1, 1.1,
-        ];
-        assert!(normaltest_pvalue(&data) > 0.01);
+    fn uniform_is_rejected_by_kurtosis() {
+        // Skewness ~ 0, so only a correct kurtosis term can reject this.
+        let s: Vec<f64> = (0..4096).map(|i| i as f64 / 4096.0).collect();
+        let k2 = k2_of(&s).unwrap();
+        assert!((-0.5 * k2).exp() < 1e-6, "k2={k2}");
     }
 
     #[test]
-    fn normaltest_small_n_returns_one() {
-        // For 8 <= n < 20 we conservatively accept (see doc).
-        let data: Vec<f64> = (0..10).map(|i| i as f64).collect();
-        assert_eq!(normaltest_pvalue(&data), 1.0);
+    fn outliers_are_rejected() {
+        let mut g = Lcg(2);
+        let s: Vec<f64> = (0..4096)
+            .map(|i| if i % 20 == 0 { 5000.0 } else { g.gauss() })
+            .collect();
+        let k2 = k2_of(&s).unwrap();
+        assert!((-0.5 * k2).exp() < 1e-6, "k2={k2}");
+    }
+
+    #[test]
+    fn degenerate_inputs_return_none() {
+        assert!(dagostino_k2(10.0, 1.0, 0.0, 3.0).is_none()); // n too small
+        assert!(dagostino_k2(100.0, 0.0, 0.0, 0.0).is_none()); // zero variance
+        assert!(dagostino_k2(100.0, f64::NAN, 0.0, 3.0).is_none());
     }
 
     #[test]
     fn ttest_equal_means_pvalue_high() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![1.1, 2.1, 3.1, 4.1, 5.1];
-        assert!(ttest_ind_pvalue(&a, &b) > 0.5);
+        let a = [1.0, 2.0, 3.0, 4.0, 5.0];
+        let b = [1.1, 2.1, 3.1, 4.1, 5.1];
+        assert!(ttest_pvalue(acc(&a), acc(&b)) > 0.5);
     }
 
     #[test]
     fn ttest_different_means_pvalue_low() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![11.0, 12.0, 13.0, 14.0, 15.0];
-        assert!(ttest_ind_pvalue(&a, &b) < 0.01);
+        let a = [1.0, 2.0, 3.0, 4.0, 5.0];
+        let b = [11.0, 12.0, 13.0, 14.0, 15.0];
+        assert!(ttest_pvalue(acc(&a), acc(&b)) < 0.01);
+    }
+
+    fn ctx<'a>(img: &'a [f32], w: usize, h: usize, bad: Option<&'a [bool]>) -> Ctx<'a> {
+        Ctx { img, width: w, height: h, bad, r1: 1e-4, r2: 1e-4 }
     }
 
     #[test]
-    fn flat_tile_accepts_constant() {
-        let tile = vec![5.0f32; 64];
-        let mut s = Scratch::with_capacity(8);
-        assert!(check_tile_is_flat(&tile, 8, 0.05, 0.05, &mut s));
+    fn tile_accepts_gaussian_noise() {
+        let img = noise_image(16, 16, 100.0, 5.0, 7);
+        assert!(ctx(&img, 16, 16, None).analyze_tile(0, 0, 16).is_some());
     }
 
     #[test]
-    fn flat_tile_rejects_all_zero() {
-        let tile = vec![0.0f32; 64];
-        let mut s = Scratch::with_capacity(8);
-        assert!(!check_tile_is_flat(&tile, 8, 0.05, 0.05, &mut s));
+    fn tile_rejects_constant_and_zero() {
+        let c = vec![5.0f32; 256];
+        let z = vec![0.0f32; 256];
+        assert!(ctx(&c, 16, 16, None).analyze_tile(0, 0, 16).is_none());
+        assert!(ctx(&z, 16, 16, None).analyze_tile(0, 0, 16).is_none());
     }
 
     #[test]
-    fn flat_tile_rejects_gradient() {
-        let mut tile = vec![0.0f32; 64];
-        for y in 0..8 {
-            for x in 0..8 {
-                tile[y * 8 + x] = x as f32 * 10.0;
+    fn tile_rejects_gradient() {
+        let mut t = vec![0.0f32; 256];
+        for y in 0..16 {
+            for x in 0..16 {
+                t[y * 16 + x] = x as f32 * 10.0;
             }
         }
-        let mut s = Scratch::with_capacity(8);
-        assert!(!check_tile_is_flat(&tile, 8, 0.05, 0.05, &mut s));
+        assert!(ctx(&t, 16, 16, None).analyze_tile(0, 0, 16).is_none());
     }
 
     #[test]
-    fn find_flat_tile_size_shrink_returns_actual_size() {
-        // 128x128 mostly-flat image with a large bright region covering 96x96.
-        // At tile=64 the flat region is too small; at tile=32 there is still
-        // space in the 32-wide L-shaped border; we expect a size >= 16.
-        let w = 128usize;
-        let h = 128usize;
-        let mut img = vec![100.0f32; w * h];
+    fn tile_rejects_masked_pixels() {
+        let img = noise_image(16, 16, 100.0, 5.0, 7);
+        let mut mask = vec![false; 256];
+        mask[37] = true;
+        assert!(ctx(&img, 16, 16, Some(&mask)).analyze_tile(0, 0, 16).is_none());
+    }
+
+    #[test]
+    fn find_flat_tile_size_shrinks_to_working_size() {
+        // 96x96 bright block: no clean 64-tile, but clean 32-tiles in the border.
+        let (w, h) = (128usize, 128usize);
+        let mut img = noise_image(w, h, 100.0, 5.0, 11);
         for y in 0..96 {
             for x in 0..96 {
-                img[y * w + x] = 5000.0;
+                img[y * w + x] += 5000.0;
             }
         }
-        let r1 = 1.0 - 0.95f64.powf(0.5);
-        let r2 = 1.0 - 0.95f64.powf(0.25);
-        let size = find_flat_tile_size(&img, w, h, r1, r2, 6, 4, 7);
-        // Must be a size where at least one flat tile actually exists.
-        if size > 0 {
-            let mut tile = vec![0.0f32; size * size];
-            let mut s = Scratch::with_capacity(size);
-            assert!(
-                available_tiles(&img, w, h, size, r1, r2, &mut tile, &mut s),
-                "returned size {size} has no flat tile"
-            );
-        }
+        let c = Ctx { img: &img, width: w, height: h, bad: None,
+                      r1: 1.0 - 0.95f64.powf(0.5), r2: 1.0 - 0.95f64.powf(0.25) };
+        let size = c.find_flat_tile_size(6, 4, 7);
+        assert_eq!(size, 32);
+        assert!(c.any_flat(size));
     }
 
     #[test]
     fn estimate_background_on_synthetic_flat_image() {
-        let w = 128usize;
-        let h = 128usize;
-        let mut img = vec![0.0f32; w * h];
-        let mut state = 12345u64;
-        let mut next = || {
-            state = state
-                .wrapping_mul(6364136223846793005)
-                .wrapping_add(1442695040888963407);
-            ((state >> 33) as f64 / (1u64 << 31) as f64) - 1.0
-        };
-        for y in 0..h {
-            for x in 0..w {
-                let noise = 5.0 * next();
-                img[y * w + x] = (100.0 + noise) as f32;
-            }
-        }
+        let (w, h) = (128usize, 128usize);
+        let mut img = noise_image(w, h, 100.0, 5.0, 12345);
         for y in 50..70 {
             for x in 50..70 {
                 img[y * w + x] = 5000.0;
             }
         }
-        let bg = estimate_background(&img, w, h, 0.05, 1e-6);
-        assert!((bg.mean - 100.0).abs() < 10.0, "mean={}", bg.mean);
-        assert!(bg.var > 5.0 && bg.var < 100.0, "var={}", bg.var);
+        let bg = estimate_background(&img, w, h, 0.05, 1e-6, None).expect("flat tiles exist");
+        assert!((bg.mean - 100.0).abs() < 1.0, "mean={}", bg.mean);
+        assert!(bg.var > 20.0 && bg.var < 30.0, "var={}", bg.var);
         assert!(bg.gain > 0.0);
         assert_eq!(bg.alpha, 1e-6);
     }
 
     #[test]
-    fn estimate_background_negative_min_sets_soft_bias() {
-        let w = 64;
-        let h = 64;
-        let mut img = vec![0.0f32; w * h];
-        for (i, v) in img.iter_mut().enumerate() {
-            *v = ((i % 7) as f32 - 3.0) * 0.1 - 5.0;
-        }
-        let bg = estimate_background(&img, w, h, 0.05, 1e-6);
-        assert!(bg.mean.is_finite());
-        assert!(bg.var > 0.0);
-        assert_eq!(bg.alpha, 1e-6);
+    fn estimate_background_negative_min_uses_soft_bias() {
+        let (w, h) = (64usize, 64usize);
+        let img = noise_image(w, h, -5.0, 0.3, 99);
+        let bg = estimate_background(&img, w, h, 0.05, 1e-6, None).expect("flat tiles exist");
+        assert!((bg.mean + 5.0).abs() < 0.2, "mean={}", bg.mean);
+        assert!(bg.var > 0.0 && bg.gain > 0.0);
+    }
+
+    #[test]
+    fn fully_masked_image_returns_none() {
+        let (w, h) = (64usize, 64usize);
+        let img = noise_image(w, h, 100.0, 5.0, 5);
+        let mask = vec![true; w * h];
+        assert!(estimate_background(&img, w, h, 0.05, 1e-6, Some(&mask)).is_none());
     }
 }
