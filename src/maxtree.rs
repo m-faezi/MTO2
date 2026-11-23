@@ -225,17 +225,21 @@ pub fn build_max_tree(
 /// Fill `area`, `volume`, `gamma`, `mean`, `variance`, `cx`, `cy` on `tree`.
 ///
 /// All accumulations are bottom-up over `tree.order.iter().rev()` (children
-/// before parents). Formulas match the original `attributes.rs` from the
-/// morph-bg project exactly:
-///   * `area[n]`     = number of pixels in node `n`'s subtree
-///   * `mean[n]`     = mean of `img` over that subtree
-///   * `variance[n]` = variance of `img` over that subtree
-///   * `cx, cy`      = centroid of that subtree
-///   * `volume[n]`   = sum over descendants d of `level[d] * area[d]`
-///   * `gamma[n]`    = topological height (max distance to a leaf)
+/// before parents).
+///
+/// `volume[n]` follows the max-tree volume definition used by Higra:
+/// the sum, over every node `d` in the subtree rooted at `n` (excluding the
+/// root's nonexistent parent edge), of
+///
+///     area[d] * abs(level[d] - level[parent[d]])
+///
+/// The root therefore accumulates the volume contributions of all non-root
+/// nodes, while its own local contribution is zero.
 pub fn compute_attributes(tree: &mut MaxTree, img: &[f32]) {
     let n = tree.num_nodes();
     let w = tree.width;
+
+    assert_eq!(img.len(), tree.num_pixels());
 
     for v in tree.area.iter_mut() { *v = 0; }
     for v in tree.volume.iter_mut() { *v = 0.0; }
@@ -284,16 +288,34 @@ pub fn compute_attributes(tree: &mut MaxTree, img: &[f32]) {
         tree.cy[node] = sy[node] / tree.area[node].max(1) as f32;
     }
 
+    // Volume and topological height.
+    // Reverse order guarantees that a node's children have already
+    // contributed their complete subtree volumes before this node is
+    // propagated to its parent.
     for &nd in tree.order.iter().rev() {
         let node = nd as usize;
+
         if node == tree.root() {
-            tree.volume[node] += (tree.level[node] as f64) * (tree.area[node] as f64);
             continue;
         }
-        let p = tree.parent_node[node] as usize;
-        tree.volume[p] +=
-            tree.volume[node] + (tree.level[node] as f64) * (tree.area[node] as f64);
-        tree.gamma[p] = tree.gamma[p].max(tree.gamma[node] + 1);
+
+        let parent = tree.parent_node[node] as usize;
+
+        let altitude_difference =
+            (tree.level[node] as f64 - tree.level[parent] as f64).abs();
+
+        let local_volume = altitude_difference * tree.area[node] as f64;
+
+        // `tree.volume[node]` already contains the accumulated volumes
+        // of this node's children.
+        tree.volume[node] += local_volume;
+
+        // Propagate the complete subtree volume to the parent.
+        tree.volume[parent] += tree.volume[node];
+
+        // Topological height.
+        tree.gamma[parent] =
+            tree.gamma[parent].max(tree.gamma[node] + 1);
     }
 }
 
@@ -363,17 +385,85 @@ mod tests {
     }
 
     #[test]
-    fn attributes_volume_root_sums_level_times_area() {
+    fn attributes_volume_matches_parent_altitude_difference() {
         let img = vec![
             0.0, 2.0, 2.0, 0.0, 1.0, 3.0, 2.0, 1.0, 0.0, 1.0, 1.0, 4.0,
         ];
+
         for conn in [Connectivity::Four, Connectivity::Eight] {
             let mut t = build_max_tree(&img, 4, 3, conn);
             compute_attributes(&mut t, &img);
+
+            let n = t.num_nodes();
+            let root = t.root();
+
+            // Independent reference: calculate each node's local volume,
+            // then add it to that node and every ancestor.
+            let mut expected = vec![0.0f64; n];
+
+            for node in 0..n {
+                if node == root {
+                    continue;
+                }
+
+                let parent = t.parent_node[node] as usize;
+                let local_volume =
+                    (t.level[node] as f64 - t.level[parent] as f64).abs()
+                    * t.area[node] as f64;
+
+                let mut ancestor = node;
+                loop {
+                    expected[ancestor] += local_volume;
+
+                    if ancestor == root {
+                        break;
+                    }
+
+                    ancestor = t.parent_node[ancestor] as usize;
+                }
+            }
+
+            for node in 0..n {
+                let error = (t.volume[node] - expected[node]).abs();
+                assert!(
+                    error < 1e-9,
+                    "volume mismatch: connectivity={:?}, node={},                      actual={}, expected={}, error={}",
+                    conn,
+                    node,
+                    t.volume[node],
+                    expected[node],
+                    error
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn attributes_volume_root_is_sum_of_all_local_contributions() {
+        let img = vec![
+            0.0, 2.0, 2.0, 0.0, 1.0, 3.0, 2.0, 1.0, 0.0, 1.0, 1.0, 4.0,
+        ];
+
+        for conn in [Connectivity::Four, Connectivity::Eight] {
+            let mut t = build_max_tree(&img, 4, 3, conn);
+            compute_attributes(&mut t, &img);
+
+            let root = t.root();
             let expected: f64 = (0..t.num_nodes())
-                .map(|n| t.level[n] as f64 * t.area[n] as f64)
+                .filter(|&node| node != root)
+                .map(|node| {
+                    let parent = t.parent_node[node] as usize;
+                    (t.level[node] as f64 - t.level[parent] as f64).abs()
+                        * t.area[node] as f64
+                })
                 .sum();
-            assert!((t.volume[t.root()] - expected).abs() < 1e-9);
+
+            assert!(
+                (t.volume[root] - expected).abs() < 1e-9,
+                "root volume={}, expected={}",
+                t.volume[root],
+                expected
+            );
         }
     }
 
@@ -409,3 +499,4 @@ mod tests {
         assert_eq!(img, vec![1.0, 2.0, 1.0, 1.0]);
     }
 }
+
