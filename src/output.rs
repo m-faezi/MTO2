@@ -14,8 +14,10 @@
 //!              as `area[n_map_segments]` in the Python version.
 //!     Flux   = sum of the UNSMOOTHED image over the same pixels
 //!              (`hg.accumulate_sequential(tree_of_segments, image, sum)` in Python).
-//!     R_eff  = sqrt( (Σx² + Σy²)/A - (cx² + cy²) ) over the segment's pixels,
-//!              with (cx, cy) = (Σx/A, Σy/A) the pixel centroid.
+//!     R_eff  = half-light radius (Python `half_light_radius`): pixels of the
+//!              segment sorted by distance to their unweighted mean position;
+//!              the distance at which the cumulative UNSMOOTHED flux reaches
+//!              half of the total flux.
 //!     Min/Max = min/max of the UNSMOOTHED image over the segment's pixels.
 //!     X, Y   = the node centroid already computed by `compute_attributes`
 //!              (`tree.cx[node]`, `tree.cy[node]`). No extra work.
@@ -114,6 +116,53 @@ impl Wcs {
 // parameters.csv
 // ---------------------------------------------------------------------------
 
+/// Port of Python `half_light_radius(image, coords)`.
+///
+/// Radii are measured from the unweighted mean of the pixel coordinates;
+/// pixels are sorted by radius and the returned value is the radius at which
+/// the cumulative flux first reaches half of the total flux. Returns 0 for an
+/// empty set or zero total flux, and the largest radius if the half-flux
+/// level is never reached.
+fn half_light_radius(
+    pixels: &[u32],
+    img: &[f32],
+    w: usize,
+    buf: &mut Vec<(f64, f64)>,
+) -> f64 {
+    if pixels.is_empty() {
+        return 0.0;
+    }
+    let n = pixels.len() as f64;
+    let (mut sy, mut sx, mut total) = (0.0f64, 0.0f64, 0.0f64);
+    for &p in pixels {
+        let p = p as usize;
+        sy += (p / w) as f64;
+        sx += (p % w) as f64;
+        total += img[p] as f64;
+    }
+    if total == 0.0 {
+        return 0.0;
+    }
+    let (y0, x0) = (sy / n, sx / n);
+    buf.clear();
+    buf.extend(pixels.iter().map(|&p| {
+        let p = p as usize;
+        let dy = (p / w) as f64 - y0;
+        let dx = (p % w) as f64 - x0;
+        ((dx * dx + dy * dy).sqrt(), img[p] as f64)
+    }));
+    buf.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let half = total / 2.0;
+    let mut cum = 0.0f64;
+    for &(r, f) in buf.iter() {
+        cum += f;
+        if cum >= half {
+            return r;
+        }
+    }
+    buf.last().map(|b| b.0).unwrap_or(0.0)
+}
+
 /// Write `ID,Area,Flux,R_eff,Min,Max,X,Y,RA,Dec`.
 /// `raw` is the image BEFORE smoothing.
 /// `in_path`/`hdu_index` are used only to read the WCS keywords once.
@@ -192,16 +241,71 @@ pub fn write_parameters_csv(
         };
     }
 
+    // ---- pixels grouped so every node's subtree is one contiguous slice ----
+    // Pre-order DFS numbering (`tin`): the subtree of a node occupies a
+    // contiguous range of `tin` values, so sorting pixels by the `tin` of
+    // their own node makes each subtree's pixels a contiguous slice of
+    // length `area[nd]`.
+    let mut child_start = vec![0usize; n_nodes + 1];
+    for nd in 0..n_nodes {
+        if nd != root {
+            child_start[tree.parent_node[nd] as usize + 1] += 1;
+        }
+    }
+    for i in 0..n_nodes {
+        child_start[i + 1] += child_start[i];
+    }
+    let mut children = vec![0u32; child_start[n_nodes]];
+    let mut fill = child_start.clone();
+    for nd in 0..n_nodes {
+        if nd != root {
+            let par = tree.parent_node[nd] as usize;
+            children[fill[par]] = nd as u32;
+            fill[par] += 1;
+        }
+    }
+    let mut tin = vec![0usize; n_nodes];
+    let mut own_cnt_by_tin = vec![0usize; n_nodes + 1];
+    {
+        let mut own = vec![0usize; n_nodes];
+        for &nd in &tree.node_of_pixel {
+            own[nd as usize] += 1;
+        }
+        let mut counter = 0usize;
+        let mut stack = vec![root as u32];
+        while let Some(nd) = stack.pop() {
+            let nd = nd as usize;
+            tin[nd] = counter;
+            own_cnt_by_tin[counter + 1] = own[nd];
+            counter += 1;
+            for &c in &children[child_start[nd]..child_start[nd + 1]] {
+                stack.push(c);
+            }
+        }
+    }
+    for t in 0..n_nodes {
+        own_cnt_by_tin[t + 1] += own_cnt_by_tin[t];
+    }
+    let pix_start_by_tin = own_cnt_by_tin.clone();
+    let mut cursor = own_cnt_by_tin;
+    let mut pix_sorted = vec![0u32; tree.node_of_pixel.len()];
+    for (p, &nd) in tree.node_of_pixel.iter().enumerate() {
+        let t = tin[nd as usize];
+        pix_sorted[cursor[t]] = p as u32;
+        cursor[t] += 1;
+    }
+    let mut hlr_buf: Vec<(f64, f64)> = Vec::new();
+
     // ---- write rows ----
     let mut wtr = BufWriter::new(File::create(path)?);
     writeln!(wtr, "ID,Area,Flux,R_eff,Min,Max,X,Y,RA,Dec,P_ID")?;
     for (i, &nd) in seg.segment_seed.iter().enumerate() {
         let nd = nd as usize;
-        let a = area[nd].max(1) as f64;
-        let cx = sx[nd] / a;
-        let cy = sy[nd] / a;
-        let r2 = (sxx[nd] + syy[nd]) / a - (cx * cx + cy * cy);
-        let r_eff = r2.max(0.0).sqrt();
+        // R_eff: half-light radius (Python `half_light_radius`), over all
+        // pixels of the node's subtree, using the UNSMOOTHED image.
+        let s0 = pix_start_by_tin[tin[nd]];
+        let s1 = s0 + area[nd] as usize;
+        let r_eff = half_light_radius(&pix_sorted[s0..s1], raw, w, &mut hlr_buf);
         let seg_min = if mn[nd].is_finite() { mn[nd] } else { 0.0 };
         let seg_max = if mx[nd].is_finite() { mx[nd] } else { 0.0 };
 
@@ -450,8 +554,10 @@ mod tests {
             let (mut a, mut fl) = (0u32, 0.0f64);
             let (mut sx, mut sy, mut sxx, mut syy) = (0.0f64, 0.0f64, 0.0f64, 0.0f64);
             let (mut mn, mut mx) = (f64::INFINITY, f64::NEG_INFINITY);
+            let mut pix: Vec<usize> = Vec::new();
             while let Some(p) = stack.pop() {
                 a += 1;
+                pix.push(p);
                 let v = raw[p] as f64;
                 fl += v;
                 let (x, y) = ((p % w) as f64, (p / w) as f64);
@@ -470,8 +576,23 @@ mod tests {
             assert!((f[2].parse::<f64>().unwrap() - fl).abs() < 1e-6 * fl.abs().max(1.0), "flux of id {}", i + 1);
             let cx = sx / a as f64;
             let cy = sy / a as f64;
-            let r2 = (sxx + syy) / a as f64 - (cx * cx + cy * cy);
-            let r_eff = r2.max(0.0).sqrt();
+            let _ = (sxx, syy);
+            // Half-light radius reference (brute force, Python semantics).
+            let mut rf: Vec<(f64, f64)> = pix
+                .iter()
+                .map(|&p| {
+                    let (x, y) = ((p % w) as f64, (p / w) as f64);
+                    (((x - cx).powi(2) + (y - cy).powi(2)).sqrt(), raw[p] as f64)
+                })
+                .collect();
+            rf.sort_by(|a, b| a.0.total_cmp(&b.0));
+            let half = fl / 2.0;
+            let mut cum = 0.0;
+            let mut r_eff = rf.last().unwrap().0;
+            for &(r, fv) in &rf {
+                cum += fv;
+                if cum >= half { r_eff = r; break; }
+            }
             assert!((f[3].parse::<f64>().unwrap() - r_eff).abs() < 1e-4, "R_eff of id {}", i + 1);
             assert!((f[4].parse::<f64>().unwrap() - mn).abs() < 1e-4, "Min of id {}", i + 1);
             assert!((f[5].parse::<f64>().unwrap() - mx).abs() < 1e-4, "Max of id {}", i + 1);
@@ -553,4 +674,3 @@ mod tests {
         }
     }
 }
-
