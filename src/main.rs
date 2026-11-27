@@ -276,6 +276,23 @@ fn run(
         println!("replaced {replaced} non-finite pixels with image minimum");
     }
 
+    // Match Python `image_value_check`: np.maximum(image, 0).
+    // Done BEFORE the blur, like Python. Set CLAMP_NEGATIVES to false if your
+    // Python run keeps negative values (image_value_check_2).
+    const CLAMP_NEGATIVES: bool = true;
+    if CLAMP_NEGATIVES {
+        let mut clamped = 0usize;
+        for v in img.iter_mut() {
+            if *v < 0.0 {
+                *v = 0.0;
+                clamped += 1;
+            }
+        }
+        if clamped > 0 {
+            println!("clamped {clamped} negative pixels to 0");
+        }
+    }
+
     print_stats("raw", &img);
 
     // Unsmoothed, unreduced image for the flux column of parameters.csv.
@@ -577,3 +594,4 @@ mod tests {
         assert_eq!(dilate_mask(&m2, 4, 4, 0), m2);
     }
 }
+
